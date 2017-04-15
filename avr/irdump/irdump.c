@@ -48,6 +48,9 @@ uart_putchar(char c, FILE *stream)
 #define MAXBURSTSIZE 512
 #define MINBURSTSIZE 10
 
+/* interrupts are nice... but too much global state for my taste,
+ * should I move to a simple polling instead of pin change
+ * interrupts? */
 volatile uint16_t buffer[MAXBURSTSIZE];
 volatile uint8_t edge_count = 0;
 volatile uint8_t last_burst_size = 0;
@@ -70,6 +73,38 @@ ISR(TIMER1_OVF_vect) {
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_RW);
 
+#define NEAR(x, a, tol) (((x) <= ((a)+(tol))) && ((x) >= ((a)-(tol))))
+
+void parse(volatile uint16_t *buf, uint8_t sz)
+{
+    /* skip till first header, sometimes there's a spurious space before */
+    while (!NEAR(*buf, 3000, 500)) buf++;
+
+    /*
+    for (uint8_t i=0; i<sz; i++) {
+        if (NEAR(buf[i], 3000, 500))
+            printf("H%u ", buf[i]);
+        else if (NEAR(buf[i], 9000, 500))
+            printf("h%u ", buf[i]);
+        else {
+            printf("%c%u ", i&1 ? 's' : 'm', buf[i]);
+        }
+    }
+    printf("\n");
+    */
+
+    for (uint8_t i=0; i<sz; i++) {
+        if (NEAR(buf[i], 3000, 500))
+            printf("H");
+        else if (NEAR(buf[i], 9000, 500))
+            printf("h");
+        else if (i & 1)
+            printf("%c", buf[i] > 1000 ? '1' : '0');
+    }
+    printf("\n");
+
+}
+
 int main (void)
 {
     uart_init();
@@ -91,15 +126,7 @@ int main (void)
     for (;;) {
         _delay_ms(1);
         if ((edge_count == 0) && (last_burst_size >= MINBURSTSIZE)) {
-            printf("::: burst %u :::\n", last_burst_size);
-            for (uint8_t i=0; i<last_burst_size; i++) {
-                if (buffer[i] > 2000) {
-                    printf("[%u] ", buffer[i]);
-                } else {
-                    printf("%u ", buffer[i]);
-                }
-            }
-            printf("\n");
+            parse(buffer, last_burst_size);
             last_burst_size = 0;
         }
     }
