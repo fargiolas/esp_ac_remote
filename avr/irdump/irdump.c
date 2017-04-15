@@ -73,20 +73,27 @@ ISR(TIMER1_OVF_vect) {
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_RW);
 
-#define DEFAULT_TOLERANCE 500
+#define DEFAULT_TOLERANCE 250
 #define _APPROX(x, a, tol) (((x) <= ((a)+(tol))) && ((x) >= ((a)-(tol))))
 #define APPROX(x, a) _APPROX((x), (a), (DEFAULT_TOLERANCE))
 
 #define HEADER_MARK 3000
 #define HEADER_SPACE 9000
+#define LONG_CMD_SPACE 2500
 #define SPACE_BIT_THRESHOLD 1000
 
 void parse(volatile uint16_t *buf, uint8_t sz)
 {
+    uint8_t chunk[8];
+    uint8_t bit;
+
     /* skip till first header, sometimes there's a spurious space before */
     while (!APPROX(*buf, HEADER_MARK)) buf++;
 
+    memset(chunk, 0, sizeof(chunk));
 
+    /* print raw timings */
+    /*
     for (uint8_t i=0; i<sz; i++) {
         if (APPROX(buf[i], HEADER_MARK))
             printf("H%u ", buf[i]);
@@ -97,15 +104,28 @@ void parse(volatile uint16_t *buf, uint8_t sz)
         }
     }
     printf("\n");
+    */
 
-
+    /* bits and bytes */
+    /* doesn't handle the double commands (power off and timer setup)
+     * because I'm lazy, the new command seem to be marked by an extra
+     * bit plus a new header, sometimes the extra bit space is longer
+     * than usual */
     for (uint8_t i=0; i<sz; i++) {
-        if (APPROX(buf[i], HEADER_MARK))
+        if (APPROX(buf[i], HEADER_MARK)) {
             printf("H");
-        else if (APPROX(buf[i], HEADER_SPACE))
+        }
+        else if (APPROX(buf[i], HEADER_SPACE)) {
             printf("h");
-        else if (i & 1)
-            printf("%c", buf[i] > SPACE_BIT_THRESHOLD ? '1' : '0');
+        }
+        else if (i & 1) {
+            bit = buf[i] > SPACE_BIT_THRESHOLD ? 1 : 0;
+            printf("%d", bit);
+            chunk[((i-2)/16)] |= bit << ((i-2)/2)%8;
+        }
+    }
+    for (uint8_t i=0; i<7; i++) {
+        printf(" %02X", chunk[i]);
     }
     printf("\n");
 
