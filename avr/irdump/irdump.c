@@ -73,33 +73,39 @@ ISR(TIMER1_OVF_vect) {
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_RW);
 
-#define NEAR(x, a, tol) (((x) <= ((a)+(tol))) && ((x) >= ((a)-(tol))))
+#define DEFAULT_TOLERANCE 500
+#define _APPROX(x, a, tol) (((x) <= ((a)+(tol))) && ((x) >= ((a)-(tol))))
+#define APPROX(x, a) _APPROX((x), (a), (DEFAULT_TOLERANCE))
+
+#define HEADER_MARK 3000
+#define HEADER_SPACE 9000
+#define SPACE_BIT_THRESHOLD 1000
 
 void parse(volatile uint16_t *buf, uint8_t sz)
 {
     /* skip till first header, sometimes there's a spurious space before */
-    while (!NEAR(*buf, 3000, 500)) buf++;
+    while (!APPROX(*buf, HEADER_MARK)) buf++;
 
-    /*
+
     for (uint8_t i=0; i<sz; i++) {
-        if (NEAR(buf[i], 3000, 500))
+        if (APPROX(buf[i], HEADER_MARK))
             printf("H%u ", buf[i]);
-        else if (NEAR(buf[i], 9000, 500))
+        else if (APPROX(buf[i], HEADER_SPACE))
             printf("h%u ", buf[i]);
         else {
             printf("%c%u ", i&1 ? 's' : 'm', buf[i]);
         }
     }
     printf("\n");
-    */
+
 
     for (uint8_t i=0; i<sz; i++) {
-        if (NEAR(buf[i], 3000, 500))
+        if (APPROX(buf[i], HEADER_MARK))
             printf("H");
-        else if (NEAR(buf[i], 9000, 500))
+        else if (APPROX(buf[i], HEADER_SPACE))
             printf("h");
         else if (i & 1)
-            printf("%c", buf[i] > 1000 ? '1' : '0');
+            printf("%c", buf[i] > SPACE_BIT_THRESHOLD ? '1' : '0');
     }
     printf("\n");
 
