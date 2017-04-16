@@ -122,13 +122,14 @@ So let's recap. Here's our guessed encoding
 C: checksum (obscure)
 S: swing       [A,F]       => [on,off]
 P: powersave   [1,3,7,F]   => [none,moon,turbo,powersave(T=26, swing=on)]
+D: display     [E,F]       => [on,off]
 T: temperature [0,E]       => [16°C,30°C]
 M: mode        [0,1,2,3,4] => [auto,cool,dry,fan,warm]
 F: fan speed   [1,5,9,B,D] => [auto,low,mid,high,natural(only in auto mode)]
 I: ions        [8,0]       => [on,off]
 
-## C# S# #P T# MF #I
-01 x2 xE Fx x3 xx Fx
+## C# S# DP T# MF #I
+01 x2 xE xx x3 xx Fx
 
 
 Did some checksum analysis with pen and paper, it seems equal to:
@@ -136,7 +137,7 @@ Did some checksum analysis with pen and paper, it seems equal to:
 where sum goes obviosly over the other bits excluding the checksum itself.
 
 Here's the gnuplot session just for reference, but wasn't really
-needed with a simple linear relation like this.
+needed with a simple relation like this.
 
 gnuplot> !cat data
 21 0xd
