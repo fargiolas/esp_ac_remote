@@ -112,7 +112,9 @@ OFF:
 Hh100000000100111011110000000000000000111010001000100000001
 Hh10000000010000110111111110001111110001001010100000000011
 
-The extra bit I'm not even sure what it is, sometimes it's a long space, sometimes a normal space, who knows. It's probably just a little pause between two commands.
+The extra bit I'm not even sure what it is, sometimes it's a long
+space, sometimes a normal space, who knows. It's probably just a
+little pause between two commands.
 
 
 So let's recap. Here's our guessed encoding
@@ -129,7 +131,42 @@ I: ions        [8,0]       => [on,off]
 01 x2 xE Fx x3 xx Fx
 
 
+Did some checksum analysis with pen and paper, it seems equal to:
+34 - SUM
+where sum goes obviosly over the other bits excluding the checksum itself.
 
+Here's the gnuplot session just for reference, but wasn't really
+needed with a simple linear relation like this.
 
+gnuplot> !cat data
+21 0xd
+22 0xc
+23 0xb
+24 0xa
+25 0x9
+26 0x8
 
+gnuplot> f(x) = a*x + b
+gnuplot> fit f(x) 'data' using 1:2 via a,b
+iter      chisq       delta/lim  lambda   a             b
+   0 2.5243548967e-29   0.00e+00  2.93e+01   -1.000000e+00   3.400000e+01
+   1 2.5243548967e-29   0.00e+00  2.93e+00   -1.000000e+00   3.400000e+01
+iter      chisq       delta/lim  lambda   a             b
 
+After 1 iterations the fit converged.
+final sum of squares of residuals : 2.52435e-29
+rel. change during last iteration : 0
+
+degrees of freedom    (FIT_NDF)                        : 4
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 2.51215e-15
+variance of residuals (reduced chisquare) = WSSR/ndf   : 6.31089e-30
+
+Final set of parameters            Asymptotic Standard Error
+=======================            ==========================
+a               = -1               +/- 6.005e-16    (6.005e-14%)
+b               = 34               +/- 1.415e-14    (4.162e-14%)
+
+correlation matrix of the fit parameters:
+                a      b
+a               1.000
+b              -0.997  1.000
