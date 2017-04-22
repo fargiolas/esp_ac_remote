@@ -46,14 +46,25 @@ uart_putchar(char c, FILE *stream)
 }
 
 #define MAXBURSTSIZE 512
+#define MAXCMDINBURST 4
 #define MINBURSTSIZE 10
+#define DEFAULT_TOLERANCE 0.2
+#define _APPROX(x, a, tol) (((x) <= ((a)+(a*tol))) && ((x) >= ((a)-(a*tol))))
+#define APPROX(x, a) _APPROX((x), (a), (DEFAULT_TOLERANCE))
+
+#define HEADER_MARK 3000
+#define HEADER_SPACE 9000
+#define LONG_CMD_SPACE 2500
+#define SPACE_BIT_THRESHOLD 1000
+// #define TIMINGSDEBUG
+
 
 /* interrupts are nice... but too much global state for my taste,
  * should I move to a simple polling instead of pin change
  * interrupts? */
 volatile uint16_t buffer[MAXBURSTSIZE];
 volatile uint8_t edge_count = 0;
-volatile uint8_t last_burst_size = 0;
+volatile uint16_t last_burst_size = 0;
 
 ISR(PCINT2_vect) {
     buffer[edge_count] = TCNT1 / 2; /* time to us */
@@ -73,61 +84,62 @@ ISR(TIMER1_OVF_vect) {
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_RW);
 
-#define DEFAULT_TOLERANCE 0.2
-#define _APPROX(x, a, tol) (((x) <= ((a)+(a*tol))) && ((x) >= ((a)-(a*tol))))
-#define APPROX(x, a) _APPROX((x), (a), (DEFAULT_TOLERANCE))
-
-#define HEADER_MARK 3000
-#define HEADER_SPACE 9000
-#define LONG_CMD_SPACE 2500
-#define SPACE_BIT_THRESHOLD 1000
-
-void parse(volatile uint16_t *buf, uint8_t sz)
+void parse(volatile uint16_t *buf, uint16_t sz)
 {
     uint8_t chunk[8];
     uint8_t bit;
 
-    /* skip till first header, sometimes there's a spurious space before */
-    while (!APPROX(*buf, HEADER_MARK)) { buf++; sz--; }
+    uint16_t headers[MAXCMDINBURST];
+    uint8_t headers_count = 0;
+    memset(headers, 0, MAXCMDINBURST*sizeof(uint16_t));
 
-    memset(chunk, 0, sizeof(chunk));
+    memset(chunk, 0, 8*sizeof(uint8_t));
 
-    /* print raw timings */
 
-    for (uint8_t i=0; i<sz; i++) {
+    /* super buggy, barely tested, just works for my single limited
+     * use case, go beyond it if you don't like it and shut up */
+
+    for (uint16_t i=0; i<(sz-1); i++) {
         if (APPROX(buf[i], HEADER_MARK))
-            printf("H%u ", buf[i]);
-        else if (APPROX(buf[i], HEADER_SPACE))
-            printf("h%u ", buf[i]);
-        else {
+            if (APPROX(buf[i+1], HEADER_SPACE)) {
+                // printf("found header at: %d\n", i);
+                if (headers_count >= MAXCMDINBURST - 1)
+                    printf("too much cmds, ignoring\n");
+                else {
+                    headers[headers_count] = i;
+                    headers_count++;
+                }
+            }
+    }
+
+    for (uint8_t h=0; h<headers_count; h++) {
+        uint16_t start = headers[h]+2;
+        uint16_t end = ((h+1) < headers_count) ? headers[h+1] : sz;
+
+#ifdef TIMINGSDEBUG
+        printf("H%d ", buf[headers[h]]);
+        printf("h%d ", buf[headers[h]+1]);
+        for (uint16_t i=start; i<end; i++) {
             printf("%c%u ", i&1 ? 'm' : 's', buf[i]);
         }
-    }
-    printf("\n");
+        printf("\n");
+#endif
 
-    /* bits and bytes */
-    /* doesn't handle the double commands (power off and timer setup)
-     * because I'm lazy, the new command seem to be marked by an extra
-     * bit plus a new header, sometimes the extra bit space is longer
-     * than usual */
-    for (uint8_t i=0; i<sz; i++) {
-        if (APPROX(buf[i], HEADER_MARK)) {
-            printf("H");
+        printf("Hh");
+        for (uint16_t i=start; i<end; i++) {
+            if ((i-start)&1) {
+                bit = buf[i] > SPACE_BIT_THRESHOLD ? 1 : 0;
+                printf("%d", bit);
+                chunk[((i-start)/16)] |= bit << ((i-start)/2)%8;
+            }
         }
-        else if (APPROX(buf[i], HEADER_SPACE)) {
-            printf("h");
-        }
-        else if (i & 1) {
-            bit = buf[i] > SPACE_BIT_THRESHOLD ? 1 : 0;
-            printf("%d", bit);
-            chunk[((i-2)/16)] |= bit << ((i-2)/2)%8;
-        }
-    }
-    for (uint8_t i=0; i<7; i++) {
-        printf(" %02X", chunk[i]);
-    }
-    printf("\n");
 
+        for (uint8_t i=0; i<7; i++) {
+            printf(" %02X", chunk[i]);
+        }
+
+        printf("\n");
+    }
 }
 
 int main (void)
@@ -151,7 +163,7 @@ int main (void)
     for (;;) {
         _delay_ms(1);
         if ((edge_count == 0) && (last_burst_size >= MINBURSTSIZE)) {
-            printf("got buf: %d\n", last_burst_size);
+            // printf("got buf: %d\n", last_burst_size);
             parse(buffer, last_burst_size);
             last_burst_size = 0;
         }
