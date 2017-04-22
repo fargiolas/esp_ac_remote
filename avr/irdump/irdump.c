@@ -73,8 +73,8 @@ ISR(TIMER1_OVF_vect) {
 
 FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_RW);
 
-#define DEFAULT_TOLERANCE 250
-#define _APPROX(x, a, tol) (((x) <= ((a)+(tol))) && ((x) >= ((a)-(tol))))
+#define DEFAULT_TOLERANCE 0.2
+#define _APPROX(x, a, tol) (((x) <= ((a)+(a*tol))) && ((x) >= ((a)-(a*tol))))
 #define APPROX(x, a) _APPROX((x), (a), (DEFAULT_TOLERANCE))
 
 #define HEADER_MARK 3000
@@ -88,23 +88,22 @@ void parse(volatile uint16_t *buf, uint8_t sz)
     uint8_t bit;
 
     /* skip till first header, sometimes there's a spurious space before */
-    while (!APPROX(*buf, HEADER_MARK)) buf++;
+    while (!APPROX(*buf, HEADER_MARK)) { buf++; sz--; }
 
     memset(chunk, 0, sizeof(chunk));
 
     /* print raw timings */
-    /*
+
     for (uint8_t i=0; i<sz; i++) {
         if (APPROX(buf[i], HEADER_MARK))
             printf("H%u ", buf[i]);
         else if (APPROX(buf[i], HEADER_SPACE))
             printf("h%u ", buf[i]);
         else {
-            printf("%c%u ", i&1 ? 's' : 'm', buf[i]);
+            printf("%c%u ", i&1 ? 'm' : 's', buf[i]);
         }
     }
     printf("\n");
-    */
 
     /* bits and bytes */
     /* doesn't handle the double commands (power off and timer setup)
@@ -152,6 +151,7 @@ int main (void)
     for (;;) {
         _delay_ms(1);
         if ((edge_count == 0) && (last_burst_size >= MINBURSTSIZE)) {
+            printf("got buf: %d\n", last_burst_size);
             parse(buffer, last_burst_size);
             last_burst_size = 0;
         }
