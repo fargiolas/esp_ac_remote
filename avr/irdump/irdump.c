@@ -99,12 +99,14 @@ void parse(volatile uint16_t *buf, uint16_t sz)
     /* super buggy, barely tested, just works for my single limited
      * use case, go beyond it if you don't like it and shut up */
 
+    /* find headers */
     for (uint16_t i=0; i<(sz-1); i++) {
         if (APPROX(buf[i], HEADER_MARK))
             if (APPROX(buf[i+1], HEADER_SPACE)) {
                 // printf("found header at: %d\n", i);
                 if (headers_count >= MAXCMDINBURST - 1)
-                    printf("too much cmds, ignoring\n");
+                    printf("too much commands, probably something very wrong,"
+                           "ignoring the following ones... FWIW\n");
                 else {
                     headers[headers_count] = i;
                     headers_count++;
@@ -112,6 +114,9 @@ void parse(volatile uint16_t *buf, uint16_t sz)
             }
     }
 
+    /* foreach header try to parse the command */
+    /* print raw timings if enabled, the full bit field and the parsed
+     * bytes */
     for (uint8_t h=0; h<headers_count; h++) {
         uint16_t start = headers[h]+2;
         uint16_t end = ((h+1) < headers_count) ? headers[h+1] : sz;
@@ -130,7 +135,7 @@ void parse(volatile uint16_t *buf, uint16_t sz)
             if ((i-start)&1) {
                 bit = buf[i] > SPACE_BIT_THRESHOLD ? 1 : 0;
                 printf("%d", bit);
-                chunk[((i-start)/16)] |= bit << ((i-start)/2)%8;
+                chunk[((i-start)/2)/8] |= bit << ((i-start)/2)%8;
             }
         }
 
@@ -155,13 +160,13 @@ int main (void)
     TCCR1B |= (1 << CS11); /* 16bit counter, prescaler 8, 0.5 us ticks */
     TIMSK1 = (1 << TOIE1); /* interrupt on overflow */
 
-    TCNT1 = 0;
-    TIFR1 = 0;
+    TCNT1 = 0;             /* reset counter */
+    TIFR1 = 0;             /* reset interrupt flag, not sure is needed */
 
     sei();
 
     for (;;) {
-        _delay_ms(1);
+        _delay_ms(2);
         if ((edge_count == 0) && (last_burst_size >= MINBURSTSIZE)) {
             // printf("got buf: %d\n", last_burst_size);
             parse(buffer, last_burst_size);
