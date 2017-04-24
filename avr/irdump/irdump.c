@@ -121,6 +121,11 @@ void parse(volatile uint16_t *buf, uint16_t sz)
         uint16_t start = headers[h]+2;
         uint16_t end = ((h+1) < headers_count) ? headers[h+1] : sz;
 
+        /* check (rather poorly) if there are spurious bits at the
+         * end. Data comes in bytes, anything extra is usually a
+         * mark-space between two bursts */
+        end -= (end - start) % 8;
+
 #ifdef TIMINGSDEBUG
         printf("H%d ", buf[headers[h]]);
         printf("h%d ", buf[headers[h]+1]);
