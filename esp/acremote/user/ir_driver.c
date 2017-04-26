@@ -57,7 +57,9 @@ typedef struct _MachineData {
   lengthy, around 100ms. Watchdog seems happy, but still...
  */
 
-static void mark (uint16_t len) {
+static void
+ICACHE_FLASH_ATTR
+mark (uint16_t len) {
     uint16_t i;
     for(i=0; i<len/TICK/2; i++) {
         GPIO_OUTPUT_SET(_gpio_pin, 0);
@@ -68,7 +70,9 @@ static void mark (uint16_t len) {
 }
 
 
-static void space (uint16_t len) {
+static void
+ICACHE_FLASH_ATTR
+space (uint16_t len) {
     GPIO_OUTPUT_SET(_gpio_pin, 0);
     os_delay_us(len);
 }
@@ -123,6 +127,7 @@ const char *state_to_str(BurstState state) {
 
 
 void
+ICACHE_FLASH_ATTR
 change_state_delayed (BurstState state, MachineData *data, uint16_t delay) {
 //    os_printf("[%d] %s -> %s (%d)\n", system_get_time(),
 //              state_to_str(data->state), state_to_str(state), delay);
@@ -138,11 +143,13 @@ change_state_delayed (BurstState state, MachineData *data, uint16_t delay) {
 }
 
 void
+ICACHE_FLASH_ATTR
 change_state (BurstState state, MachineData *data) {
     return change_state_delayed(state, data, 0);
 }
 
 void
+ICACHE_FLASH_ATTR
 machine_func (void *userdata) {
     MachineData *data = (MachineData *) userdata;
     uint8 pos, seek;
@@ -237,7 +244,7 @@ ir_send_cmd (uint8_t *command) {
         os_printf("Starting queue timer\n");
         os_timer_disarm(&cmd_timer);
         os_timer_setfn(&cmd_timer, (os_timer_func_t *) process_queue, NULL);
-        os_timer_arm_us(&cmd_timer, 1000, 1);
+        os_timer_arm_us(&cmd_timer, 2000, 1);
     }
 
 
