@@ -18,7 +18,10 @@ BUILD_BASE	= build
 FW_BASE		= firmware
 
 # base directory of the ESP8266 SDK package, absolute
-SDK_BASE	?= /home/pippo/git/esp-open-sdk/sdk
+SDK_BASE	?= ../esp-open-sdk/sdk
+MQTT_BASE       ?= ../esp_mqtt
+MQTT_INCLUDES   ?= $(addprefix $(MQTT_BASE)/,include mqtt/include)
+MQTT_LDFLAGS    ?= $(addprefix -L$(MQTT_BASE)/,firmware)
 
 # esptool.py path and port
 ESPTOOL		?= esptool.py
@@ -30,17 +33,17 @@ MONITOR_BAUDRATE ?= 74880
 TARGET		= app
 
 # which modules (subdirectories) of the project to include in compiling
-MODULES		= driver user
-EXTRA_INCDIR    = include
+MODULES		= include user
+EXTRA_INCDIR    = include $(MQTT_INCLUDES)
 
 # libraries used in this project, mainly provided by the SDK
-LIBS		= c gcc hal pp phy net80211 lwip wpa main
+LIBS		= c gcc hal pp phy net80211 lwip ssl mqtt wpa main
 
 # compiler flags using during compilation of source files
 CFLAGS		= -Os -g -O2 -Wpointer-arith -Wundef -Werror -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals  -D__ets__ -DICACHE_FLASH
 
 # linker flags used to generate the main object file
-LDFLAGS		= -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static
+LDFLAGS		= -nostdlib -Wl,--no-check-sections -u call_user_start -Wl,-static $(MQTT_LDFLAGS)
 
 # linker script used for the above linkier step
 LD_SCRIPT	= eagle.app.v6.ld
