@@ -36,8 +36,12 @@ void some_timerfunc(void *arg)
                   IR_SWING_MODE_OFF, IR_POWER_MODE_NORMAL,
                   IR_ION_MODE_OFF, IR_DISPLAY_MODE_ON);
 
-    ir_send_cmd(cmd);
-    ir_send_cmd(test);
+//    ir_send_cmd(cmd);
+//    ir_send_cmd(test);
+//    ir_send_cmd(cmd);
+    ir_send_cmd(sator);
+    ir_send_cmd(arepo);
+
 
     // send_cmd(test);
     // send_cmd_sm(test);
@@ -178,5 +182,5 @@ user_init()
     //&some_timer is the pointer
     //1000 is the fire time in ms
     //0 for once and 1 for repeating
-    os_timer_arm(&some_timer, 2000, 0);
+    os_timer_arm(&some_timer, 5000, 1);
 }

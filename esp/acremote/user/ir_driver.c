@@ -7,6 +7,7 @@
 
 #include "ir_driver.h"
 #include "utils.h"
+#include "queue.h"
 
 #define HEADER_MARK_US  3000
 #define HEADER_SPACE_US 9000
@@ -22,7 +23,10 @@
 #define _gpio_mux  PERIPHS_IO_MUX_GPIO4_U
 
 static volatile os_timer_t machine_timer;
-static volatile bool ir_lock = FALSE;
+static volatile bool ir_busy = FALSE;
+
+static queue *cmd_queue = NULL;
+static volatile os_timer_t cmd_timer;
 
 typedef enum {
     STATE_IDLE,
@@ -38,6 +42,7 @@ typedef struct _MachineData {
     uint8_t bit;
     BurstState state;
 } MachineData;
+
 
 
 /*
@@ -179,7 +184,7 @@ machine_func (void *userdata) {
     case STATE_DONE:
         GPIO_OUTPUT_SET(_gpio_pin, 0);
         os_free(data);
-        ir_lock = FALSE;
+        ir_busy = FALSE;
         break;
     }
 }
@@ -189,28 +194,25 @@ ir_init(void) {
     PIN_FUNC_SELECT(_gpio_mux, _gpio_func);
 }
 
-void ICACHE_FLASH_ATTR
-ir_send_cmd (uint8_t *command) {
+void process_queue (void *userdata) {
     uint8_t i;
-    MachineData *data;
 
-    /* FIXME: implement async properly, wait for the lock to be
-     * released and send new command */
-    if (ir_lock) {
-        os_printf("IR driver busy, ignoring command: ");
-        for (i=0; i<7; i++) {
-            os_printf("%02X ", command[i]);
-        }
-        os_printf("\n");
+    if (cmd_queue->len == 0) {
+        os_printf("Queue done\n");
+        queue_free(cmd_queue);
+        cmd_queue = NULL;
+        os_timer_disarm(&cmd_timer);
         return;
     }
 
-    ir_lock = TRUE;
+    if (ir_busy) {
+        return;
+    }
 
-    data = (MachineData *) os_zalloc(sizeof(MachineData));
-    os_memcpy(data->command, command);
-    data->state = STATE_IDLE;
-    data->bit = 0;
+
+    ir_busy = TRUE;
+
+    MachineData *data = cmd_queue->pop(cmd_queue);
 
     os_printf("Sending command: ");
     for (i=0; i<7; i++) {
@@ -219,6 +221,32 @@ ir_send_cmd (uint8_t *command) {
     os_printf("\n");
 
     change_state(STATE_IDLE, data);
+}
+
+void ICACHE_FLASH_ATTR
+ir_send_cmd (uint8_t *command) {
+    uint8_t i;
+    MachineData *data;
+
+    if (cmd_queue == NULL) {
+        os_printf("Queue init\n");
+        cmd_queue = queue_new();
+    }
+
+    if (cmd_queue->len == 0) {
+        os_printf("Starting queue timer\n");
+        os_timer_disarm(&cmd_timer);
+        os_timer_setfn(&cmd_timer, (os_timer_func_t *) process_queue, NULL);
+        os_timer_arm_us(&cmd_timer, 1000, 1);
+    }
+
+
+    data = (MachineData *) os_zalloc(sizeof(MachineData));
+    os_memcpy(data->command, command);
+    data->state = STATE_IDLE;
+    data->bit = 0;
+
+    cmd_queue->push(cmd_queue, data);
 }
 
 /* move everything to a proper object with checks and all */
