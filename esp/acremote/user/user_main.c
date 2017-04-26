@@ -7,7 +7,13 @@
 #include "user_config.h"
 #include "user_interface.h"
 
+#include "user_config.local.h"
+
 #include "ir_driver.h"
+#include "mqtt.h"
+
+MQTT_Client mqttClient;
+
 
 static volatile os_timer_t some_timer;
 
@@ -71,6 +77,8 @@ wifi_callback( System_Event_t *evt )
                         IP2STR(&evt->event_info.got_ip.gw));
             os_printf("\n");
 
+            MQTT_Connect(&mqttClient);
+
             break;
         }
 
@@ -79,6 +87,47 @@ wifi_callback( System_Event_t *evt )
             break;
         }
     }
+}
+
+static void ICACHE_FLASH_ATTR mqttConnectedCb(uint32_t *args)
+{
+  MQTT_Client* client = (MQTT_Client*)args;
+  INFO("MQTT: Connected\r\n");
+  MQTT_Subscribe(client, "/mqtt/topic/0", 0);
+  MQTT_Subscribe(client, "/mqtt/topic/1", 1);
+  MQTT_Subscribe(client, "/mqtt/topic/2", 2);
+
+  MQTT_Publish(client, "/mqtt/topic/0", "hello0", 6, 0, 0);
+  MQTT_Publish(client, "/mqtt/topic/1", "hello1", 6, 1, 0);
+  MQTT_Publish(client, "/mqtt/topic/2", "hello2", 6, 2, 0);
+
+}
+
+static void ICACHE_FLASH_ATTR mqttDisconnectedCb(uint32_t *args)
+{
+  MQTT_Client* client = (MQTT_Client*)args;
+  INFO("MQTT: Disconnected\r\n");
+}
+
+static void ICACHE_FLASH_ATTR mqttPublishedCb(uint32_t *args)
+{
+  MQTT_Client* client = (MQTT_Client*)args;
+  INFO("MQTT: Published\r\n");
+}
+
+static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const char *data, uint32_t data_len)
+{
+  char *topicBuf = (char*)os_zalloc(topic_len + 1),
+        *dataBuf = (char*)os_zalloc(data_len + 1);
+
+  MQTT_Client* client = (MQTT_Client*)args;
+  os_memcpy(topicBuf, topic, topic_len);
+  topicBuf[topic_len] = 0;
+  os_memcpy(dataBuf, data, data_len);
+  dataBuf[data_len] = 0;
+  INFO("Receive topic: %s, data: %s \r\n", topicBuf, dataBuf);
+  os_free(topicBuf);
+  os_free(dataBuf);
 }
 
 
@@ -101,6 +150,21 @@ user_init()
     wifi_station_set_config(&config);
 
     wifi_set_event_handler_cb(wifi_callback);
+
+    MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
+    //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
+
+    if ( !MQTT_InitClient(&mqttClient, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
+    {
+        INFO("Failed to initialize properly. Check MQTT version.\r\n");
+        return;
+    }
+    //MQTT_InitClient(&mqttClient, "client_id", "user", "pass", 120, 1);
+    MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
+    MQTT_OnConnected(&mqttClient, mqttConnectedCb);
+    MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
+    MQTT_OnPublished(&mqttClient, mqttPublishedCb);
+    MQTT_OnData(&mqttClient, mqttDataCb);
 
     ir_init();
 
