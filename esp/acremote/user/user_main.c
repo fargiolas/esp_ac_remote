@@ -1,7 +1,6 @@
 #include "ets_sys.h"
 #include "gpio.h"
 #include "os_type.h"
-#define USE_US_TIMER
 #include "osapi.h"
 #include "mem.h"
 #include "user_config.h"
@@ -17,7 +16,8 @@ MQTT_Client mqttClient;
 
 static volatile os_timer_t some_timer;
 
-void some_timerfunc(void *arg)
+void
+ICACHE_FLASH_ATTR some_timerfunc(void *arg)
 {
     uint8_t i;
 
@@ -36,8 +36,6 @@ void some_timerfunc(void *arg)
                   IR_SWING_MODE_OFF, IR_POWER_MODE_NORMAL,
                   IR_ION_MODE_OFF, IR_DISPLAY_MODE_ON);
 
-//    ir_send_cmd(cmd);
-//    ir_send_cmd(test);
 //    ir_send_cmd(cmd);
     ir_send_cmd(sator);
     ir_send_cmd(arepo);
@@ -81,7 +79,7 @@ wifi_callback( System_Event_t *evt )
                         IP2STR(&evt->event_info.got_ip.gw));
             os_printf("\n");
 
-            MQTT_Connect(&mqttClient);
+            // MQTT_Connect(&mqttClient);
 
             break;
         }
@@ -140,7 +138,6 @@ void ICACHE_FLASH_ATTR
 user_init()
 {
     static struct station_config config;
-    system_timer_reinit();
 
     wifi_station_set_hostname("esp-ac-remote");
     wifi_set_opmode_current(STATION_MODE);
@@ -155,20 +152,20 @@ user_init()
 
     wifi_set_event_handler_cb(wifi_callback);
 
-    MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
-    //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
+    /* MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY); */
+    /* //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0); */
 
-    if ( !MQTT_InitClient(&mqttClient, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
-    {
-        INFO("Failed to initialize properly. Check MQTT version.\r\n");
-        return;
-    }
-    //MQTT_InitClient(&mqttClient, "client_id", "user", "pass", 120, 1);
-    MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0);
-    MQTT_OnConnected(&mqttClient, mqttConnectedCb);
-    MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
-    MQTT_OnPublished(&mqttClient, mqttPublishedCb);
-    MQTT_OnData(&mqttClient, mqttDataCb);
+    /* if ( !MQTT_InitClient(&mqttClient, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) ) */
+    /* { */
+    /*     INFO("Failed to initialize properly. Check MQTT version.\r\n"); */
+    /*     return; */
+    /* } */
+    /* //MQTT_InitClient(&mqttClient, "client_id", "user", "pass", 120, 1); */
+    /* MQTT_InitLWT(&mqttClient, "/lwt", "offline", 0, 0); */
+    /* MQTT_OnConnected(&mqttClient, mqttConnectedCb); */
+    /* MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb); */
+    /* MQTT_OnPublished(&mqttClient, mqttPublishedCb); */
+    /* MQTT_OnData(&mqttClient, mqttDataCb); */
 
     ir_init();
 
@@ -182,5 +179,5 @@ user_init()
     //&some_timer is the pointer
     //1000 is the fire time in ms
     //0 for once and 1 for repeating
-    os_timer_arm(&some_timer, 5000, 1);
+    os_timer_arm(&some_timer, 2000, 1);
 }

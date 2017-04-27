@@ -1,7 +1,6 @@
 #include "ets_sys.h"
 #include "gpio.h"
 #include "os_type.h"
-#define USE_US_TIMER
 #include "osapi.h"
 #include "mem.h"
 
@@ -22,14 +21,11 @@
 #define _gpio_func FUNC_GPIO4
 #define _gpio_mux  PERIPHS_IO_MUX_GPIO4_U
 
-static volatile os_timer_t machine_timer;
-static volatile bool ir_busy = FALSE;
-
 static queue *cmd_queue = NULL;
-static volatile os_timer_t cmd_timer;
 
 typedef enum {
     STATE_IDLE,
+    STATE_INIT,
     STATE_HDR_MARK,
     STATE_HDR_SPACE,
     STATE_CMD_MARK,
@@ -37,12 +33,9 @@ typedef enum {
     STATE_DONE,
 } BurstState;
 
-typedef struct _MachineData {
-    uint8_t command[7];
-    uint8_t bit;
-    BurstState state;
-} MachineData;
-
+static BurstState ir_state = STATE_IDLE;
+static uint8_t current_bit = 0;
+static uint8_t *current_cmd;
 
 
 /*
@@ -58,7 +51,6 @@ typedef struct _MachineData {
  */
 
 static void
-ICACHE_FLASH_ATTR
 mark (uint16_t len) {
     uint16_t i;
     for(i=0; i<len/TICK/2; i++) {
@@ -71,7 +63,6 @@ mark (uint16_t len) {
 
 
 static void
-ICACHE_FLASH_ATTR
 space (uint16_t len) {
     GPIO_OUTPUT_SET(_gpio_pin, 0);
     os_delay_us(len);
@@ -111,12 +102,12 @@ uint8_t checksum (uint8_t *buf) {
     return acc;
 }
 
-void
-machine_func (void *userdata);
+void machine_func (void);
 
 const char *state_to_str(BurstState state) {
     switch (state) {
     case STATE_IDLE:      return "STATE_IDLE";
+    case STATE_INIT:      return "STATE_INIT";
     case STATE_HDR_MARK:  return "STATE_HDR_MARK";
     case STATE_HDR_SPACE: return "STATE_HDR_SPACE";
     case STATE_CMD_MARK:  return "STATE_CMD_MARK";
@@ -127,71 +118,86 @@ const char *state_to_str(BurstState state) {
 
 
 void
-ICACHE_FLASH_ATTR
-change_state_delayed (BurstState state, MachineData *data, uint16_t delay) {
+change_state_delayed (BurstState state, uint16_t delay) {
 //    os_printf("[%d] %s -> %s (%d)\n", system_get_time(),
 //              state_to_str(data->state), state_to_str(state), delay);
 
-    data->state = state;
+    ir_state = state;
 
     if (delay > 0) {
-        os_timer_setfn(&machine_timer, (os_timer_func_t *)machine_func, data);
-        os_timer_arm_us(&machine_timer, delay, 0);
+        hw_timer_set_func(machine_func);
+        hw_timer_arm(delay);
     } else {
-        machine_func(data); /* super ugly, locking, FIXME */
+        machine_func(); /* super ugly, locking, FIXME */
     }
 }
 
 void
-ICACHE_FLASH_ATTR
-change_state (BurstState state, MachineData *data) {
-    return change_state_delayed(state, data, 0);
+change_state (BurstState state) {
+    return change_state_delayed(state, 0);
 }
 
 void
-ICACHE_FLASH_ATTR
-machine_func (void *userdata) {
-    MachineData *data = (MachineData *) userdata;
+machine_func (void) {
+    uint8_t i;
     uint8 pos, seek;
 
-    os_timer_disarm(&machine_timer); /* safe if not armed? */
-
-    switch (data->state) {
+    switch (ir_state) {
     case STATE_IDLE:
+        break;
+    case STATE_INIT:
+        current_cmd = (uint8_t *) cmd_queue->pop(cmd_queue);
+
+        os_printf("Sending command: ");
+        for (i=0; i<7; i++) {
+            os_printf("%02X ", current_cmd[i]);
+        }
+        os_printf("\n");
+
+        current_bit = 0;
+
         GPIO_OUTPUT_SET(_gpio_pin, 0);
-        change_state(STATE_HDR_MARK, data);
+        change_state(STATE_HDR_MARK);
         break;
     case STATE_HDR_MARK:
         mark(HEADER_MARK_US);
-        change_state(STATE_HDR_SPACE, data);
+        change_state(STATE_HDR_SPACE);
         break;
     case STATE_HDR_SPACE:
         GPIO_OUTPUT_SET(_gpio_pin, 0);
-        change_state_delayed(STATE_CMD_MARK, data, HEADER_SPACE_US);
+        change_state_delayed(STATE_CMD_MARK, HEADER_SPACE_US);
         break;
     case STATE_CMD_MARK:
         mark(BIT_MARK_US);
-         if (data->bit <= (8*7-1))
-            change_state(STATE_CMD_SPACE, data);
+        if (current_bit <= (8*7-1))
+            change_state(STATE_CMD_SPACE);
         else
-            change_state(STATE_DONE, data);
+            change_state(STATE_DONE);
         break;
     case STATE_CMD_SPACE:
         GPIO_OUTPUT_SET(_gpio_pin, 0);
-        pos = data->bit / 8;
-        seek = data->bit % 8;
-        data->bit++;
-        if (data->command[pos] & 1<<seek) {
-            change_state_delayed(STATE_CMD_MARK, data, BIT_SPACE_1_US);
+        pos = current_bit / 8;
+        seek = current_bit % 8;
+        current_bit++;
+        if (current_cmd[pos] & 1<<seek) {
+            change_state_delayed(STATE_CMD_MARK, BIT_SPACE_1_US);
         }
         else {
-            change_state_delayed(STATE_CMD_MARK, data, BIT_SPACE_0_US);
+            change_state_delayed(STATE_CMD_MARK, BIT_SPACE_0_US);
         }
         break;
     case STATE_DONE:
         GPIO_OUTPUT_SET(_gpio_pin, 0);
-        os_free(data);
-        ir_busy = FALSE;
+        os_free(current_cmd);
+        if (cmd_queue->len == 0) {
+            os_printf("Queue done. See you in another life brother.\n");
+            queue_free(cmd_queue);
+            cmd_queue = NULL;
+            change_state_delayed(STATE_IDLE, BIT_SPACE_1_US);
+        } else {
+            change_state_delayed(STATE_INIT, BIT_SPACE_1_US);
+        }
+
         break;
     }
 }
@@ -199,61 +205,30 @@ machine_func (void *userdata) {
 void ICACHE_FLASH_ATTR
 ir_init(void) {
     PIN_FUNC_SELECT(_gpio_mux, _gpio_func);
+    hw_timer_init(0, 0);
 }
 
-void process_queue (void *userdata) {
-    uint8_t i;
-
-    if (cmd_queue->len == 0) {
-        os_printf("Queue done\n");
-        queue_free(cmd_queue);
-        cmd_queue = NULL;
-        os_timer_disarm(&cmd_timer);
-        return;
-    }
-
-    if (ir_busy) {
-        return;
-    }
-
-
-    ir_busy = TRUE;
-
-    MachineData *data = cmd_queue->pop(cmd_queue);
-
-    os_printf("Sending command: ");
-    for (i=0; i<7; i++) {
-        os_printf("%02X ", data->command[i]);
-    }
-    os_printf("\n");
-
-    change_state(STATE_IDLE, data);
-}
-
-void ICACHE_FLASH_ATTR
+void
 ir_send_cmd (uint8_t *command) {
     uint8_t i;
-    MachineData *data;
+    uint8_t *cmd = (uint8_t *) os_zalloc(7*sizeof(uint8_t));
+    os_memcpy(cmd, command, 7*sizeof(uint8_t));
 
     if (cmd_queue == NULL) {
         os_printf("Queue init\n");
         cmd_queue = queue_new();
     }
 
-    if (cmd_queue->len == 0) {
-        os_printf("Starting queue timer\n");
-        os_timer_disarm(&cmd_timer);
-        os_timer_setfn(&cmd_timer, (os_timer_func_t *) process_queue, NULL);
-        os_timer_arm_us(&cmd_timer, 2000, 1);
+    os_printf("Pushing command: ");
+    for (i=0; i<7; i++) {
+        os_printf("%02X ", cmd[i]);
     }
+    os_printf("\n");
 
+    cmd_queue->push(cmd_queue, cmd);
 
-    data = (MachineData *) os_zalloc(sizeof(MachineData));
-    os_memcpy(data->command, command);
-    data->state = STATE_IDLE;
-    data->bit = 0;
-
-    cmd_queue->push(cmd_queue, data);
+    if ((cmd_queue->len == 1) && (ir_state == STATE_IDLE))
+        change_state(STATE_INIT);
 }
 
 /* move everything to a proper object with checks and all */

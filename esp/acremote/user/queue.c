@@ -4,7 +4,7 @@
 #include "mem.h"
 
 typedef struct qnode {
-    void *data;
+    uint8_t *data;
     struct qnode *next;
 } qnode;
 
@@ -18,7 +18,7 @@ typedef struct queue {
 } queue;
 
 void push (queue *q, void *data) {
-    qnode *n = (qnode *) os_malloc(sizeof(qnode));
+    qnode *n = (qnode *) os_zalloc(sizeof(qnode));
     n->data = data;
     n->next = NULL;
 
@@ -44,7 +44,7 @@ void *pop (queue *q) {
 }
 
 queue *queue_new() {
-    queue *q = (queue *) os_malloc(sizeof(queue));
+    queue *q = (queue *) os_zalloc(sizeof(queue));
     q->len = 0;
     q->head = NULL;
     q->tail = NULL;
