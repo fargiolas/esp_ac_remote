@@ -93,8 +93,6 @@ void parse(volatile uint16_t *buf, uint16_t sz)
     uint8_t headers_count = 0;
     memset(headers, 0, MAXCMDINBURST*sizeof(uint16_t));
 
-    memset(chunk, 0, 8*sizeof(uint8_t));
-
 
     /* super buggy, barely tested, just works for my single limited
      * use case, go beyond it if you don't like it and shut up */
@@ -135,6 +133,8 @@ void parse(volatile uint16_t *buf, uint16_t sz)
         printf("\n");
 #endif
 
+        memset(chunk, 0, 8*sizeof(uint8_t));
+
         printf("Hh");
         for (uint16_t i=start; i<end; i++) {
             if ((i-start)&1) {
@@ -171,7 +171,7 @@ int main (void)
     sei();
 
     for (;;) {
-        _delay_ms(2);
+        _delay_ms(1);
         if ((edge_count == 0) && (last_burst_size >= MINBURSTSIZE)) {
             // printf("got buf: %d\n", last_burst_size);
             parse(buffer, last_burst_size);
