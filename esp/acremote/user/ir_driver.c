@@ -34,9 +34,16 @@ typedef enum {
 } BurstState;
 
 static BurstState ir_state = STATE_IDLE;
-static uint8_t current_bit = 0;
-static uint8_t *current_cmd;
 
+typedef struct _CommandData {
+    uint8_t cmd[7];
+    uint8_t bit;
+
+    cmd_done_func_t done_cb;
+    void           *done_data;
+} CommandData;
+
+static CommandData *cur_data = NULL;
 
 /*
   Bit bang GPIO pin for <len> us.
@@ -104,24 +111,7 @@ uint8_t checksum (uint8_t *buf) {
 
 void machine_func (void);
 
-const char *state_to_str(BurstState state) {
-    switch (state) {
-    case STATE_IDLE:      return "STATE_IDLE";
-    case STATE_INIT:      return "STATE_INIT";
-    case STATE_HDR_MARK:  return "STATE_HDR_MARK";
-    case STATE_HDR_SPACE: return "STATE_HDR_SPACE";
-    case STATE_CMD_MARK:  return "STATE_CMD_MARK";
-    case STATE_CMD_SPACE: return "STATE_CMD_SPACE";
-    case STATE_DONE:      return "STATE_DONE";
-    }
-}
-
-
-void
-change_state_delayed (BurstState state, uint16_t delay) {
-//    os_printf("[%d] %s -> %s (%d)\n", system_get_time(),
-//              state_to_str(data->state), state_to_str(state), delay);
-
+void change_state_delayed (BurstState state, uint16_t delay) {
     ir_state = state;
 
     if (delay > 0) {
@@ -132,13 +122,11 @@ change_state_delayed (BurstState state, uint16_t delay) {
     }
 }
 
-void
-change_state (BurstState state) {
+void change_state (BurstState state) {
     return change_state_delayed(state, 0);
 }
 
-void
-machine_func (void) {
+void machine_func (void) {
     uint8_t i;
     uint8 pos, seek;
 
@@ -146,15 +134,13 @@ machine_func (void) {
     case STATE_IDLE:
         break;
     case STATE_INIT:
-        current_cmd = (uint8_t *) cmd_queue->pop(cmd_queue);
+        cur_data = cmd_queue->pop(cmd_queue);
 
         os_printf("Sending command: ");
         for (i=0; i<7; i++) {
-            os_printf("%02X ", current_cmd[i]);
+            os_printf("%02X ", cur_data->cmd[i]);
         }
         os_printf("\n");
-
-        current_bit = 0;
 
         GPIO_OUTPUT_SET(_gpio_pin, 0);
         change_state(STATE_HDR_MARK);
@@ -169,17 +155,17 @@ machine_func (void) {
         break;
     case STATE_CMD_MARK:
         mark(BIT_MARK_US);
-        if (current_bit <= (8*7-1))
+        if (cur_data->bit <= (8*7-1))
             change_state(STATE_CMD_SPACE);
         else
             change_state(STATE_DONE);
         break;
     case STATE_CMD_SPACE:
         GPIO_OUTPUT_SET(_gpio_pin, 0);
-        pos = current_bit / 8;
-        seek = current_bit % 8;
-        current_bit++;
-        if (current_cmd[pos] & 1<<seek) {
+        pos = cur_data->bit / 8;
+        seek = cur_data->bit % 8;
+        cur_data->bit++;
+        if (cur_data->cmd[pos] & 1<<seek) {
             change_state_delayed(STATE_CMD_MARK, BIT_SPACE_1_US);
         }
         else {
@@ -188,7 +174,9 @@ machine_func (void) {
         break;
     case STATE_DONE:
         GPIO_OUTPUT_SET(_gpio_pin, 0);
-        os_free(current_cmd);
+        if (cur_data->done_cb != NULL) cur_data->done_cb(cur_data->done_data);
+        os_free(cur_data);
+
         if (cmd_queue->len == 0) {
             os_printf("Queue done. See you in another life brother.\n");
             queue_free(cmd_queue);
@@ -208,11 +196,24 @@ ir_init(void) {
     hw_timer_init(0, 0);
 }
 
-void
-ir_send_cmd (uint8_t *command) {
+static CommandData *command_data_new(uint8_t *command,
+                                     cmd_done_func_t done_cb, void *done_data)
+{
+    CommandData *data = (CommandData *) os_zalloc(sizeof(CommandData));
+
+    os_memcpy(data->cmd, command, 7*sizeof(uint8_t));
+    data->bit = 0;
+    data->done_cb = done_cb;
+    data->done_data = done_data;
+
+    return data;
+}
+
+void ir_send_cmd_full (uint8_t *command,
+                       cmd_done_func_t done_cb, void *done_data)
+{
     uint8_t i;
-    uint8_t *cmd = (uint8_t *) os_zalloc(7*sizeof(uint8_t));
-    os_memcpy(cmd, command, 7*sizeof(uint8_t));
+    CommandData *data = command_data_new(command, done_cb, done_data);
 
     if (cmd_queue == NULL) {
         os_printf("Queue init\n");
@@ -221,14 +222,18 @@ ir_send_cmd (uint8_t *command) {
 
     os_printf("Pushing command: ");
     for (i=0; i<7; i++) {
-        os_printf("%02X ", cmd[i]);
+        os_printf("%02X ", data->cmd[i]);
     }
     os_printf("\n");
 
-    cmd_queue->push(cmd_queue, cmd);
+    cmd_queue->push(cmd_queue, data);
 
     if ((cmd_queue->len == 1) && (ir_state == STATE_IDLE))
         change_state(STATE_INIT);
+}
+
+void ir_send_cmd (uint8_t *command) {
+    ir_send_cmd_full (command, NULL, NULL);
 }
 
 /* move everything to a proper object with checks and all */

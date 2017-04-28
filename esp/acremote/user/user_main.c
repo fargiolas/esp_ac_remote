@@ -16,6 +16,15 @@ MQTT_Client mqttClient;
 
 static volatile os_timer_t some_timer;
 
+
+void done (void* data) {
+    uint8_t *cmd = (uint8_t *) data;
+    uint8_t i;
+
+    os_printf("Free heap: %d\n", system_get_free_heap_size());
+}
+
+
 void
 ICACHE_FLASH_ATTR some_timerfunc(void *arg)
 {
@@ -37,8 +46,8 @@ ICACHE_FLASH_ATTR some_timerfunc(void *arg)
                   IR_ION_MODE_OFF, IR_DISPLAY_MODE_ON);
 
 //    ir_send_cmd(cmd);
-    ir_send_cmd(sator);
-    ir_send_cmd(arepo);
+    ir_send_cmd_full(sator, done, NULL);
+    ir_send_cmd_full(arepo, done, NULL);
 
 
     // send_cmd(test);

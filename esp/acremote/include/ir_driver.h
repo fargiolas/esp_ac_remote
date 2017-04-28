@@ -27,15 +27,16 @@
 #define IR_ION_MODE_ON       0x08
 #define IR_ION_MODE_OFF      0x00
 
+typedef void (* cmd_done_func_t)();
 
-void ICACHE_FLASH_ATTR ir_send_cmd (uint8_t *command);
-void ICACHE_FLASH_ATTR ir_send_cmd_simple (uint8_t *command);
+void ir_init (void);
+void ir_send_cmd (uint8_t *command);
+void ir_send_cmd_full (uint8_t *command, cmd_done_func_t done_cb, void *done_data);
+void ir_send_cmd_simple (uint8_t *command);
 
-void ICACHE_FLASH_ATTR build_command (uint8_t *cmd, uint8_t mode, uint8_t temperature,
-                                      uint8_t fan_speed, uint8_t swing,
-                                      uint8_t energy_mode, uint8_t ions,
-                                      uint8_t display);
-
-
+void build_command (uint8_t *cmd, uint8_t mode, uint8_t temperature,
+                    uint8_t fan_speed, uint8_t swing,
+                    uint8_t energy_mode, uint8_t ions,
+                    uint8_t display);
 
 #endif /* _IR_REMOTE_H */
