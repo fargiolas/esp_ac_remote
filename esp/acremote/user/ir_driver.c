@@ -188,6 +188,9 @@ void machine_func (void) {
         break;
     case STATE_CMD_SPACE:
         GPIO_OUTPUT_SET(_gpio_pin, 0);
+        /* bit is the position in the whole burst sequence */
+        /* pos is the current byte in the command array */
+        /* seek it the bit we want from current byte */
         pos = cur_data->bit / 8;
         seek = cur_data->bit % 8;
         cur_data->bit++;
