@@ -26,6 +26,23 @@
 #include "utils.h"
 #include "ir_driver.h"
 
+typedef struct _ACState {
+    uint8_t power;
+    uint8_t mode;
+    uint8_t temperature;
+    uint8_t fan;
+    uint8_t swing;
+    uint8_t energy;
+    uint8_t ion;
+    uint8_t display;
+} ACState;
+
+typedef struct {
+    char     *key;
+    uint8_t  *value_dest;
+    char     *value_name;
+    uint8_t   value_data;
+} mode_parser_table;
 
 char *chomp(const char *str, uint32_t len)
 {
@@ -74,28 +91,14 @@ static char *get_pair(char *key_pos, char *key, char *value)
     return *iter == '\0' ? NULL : iter + 1;
 }
 
-typedef struct _ACState {
-    uint8_t mode;
-    uint8_t temperature;
-    uint8_t fan;
-    uint8_t swing;
-    uint8_t energy;
-    uint8_t ion;
-    uint8_t display;
-} ACState;
-
-typedef struct {
-    char     *key;
-    uint8_t  *value_dest;
-    char     *value_name;
-    uint8_t   value_data;
-} mode_parser_table;
-
-
 static void parse_pair(char *key, char *value, ACState *state)
 {
     uint8_t i;
     mode_parser_table table[] = {
+        /***************************************************************/
+        {   "power", &(state->power),      "on", IR_POWER_MODE_ON },
+        {   "power", &(state->power),     "off", IR_POWER_MODE_OFF },
+        /***************************************************************/
         {    "mode", &(state->mode),     "auto", IR_AC_MODE_AUTO },
         {    "mode", &(state->mode),     "cool", IR_AC_MODE_COOL },
         {    "mode", &(state->mode),      "dry", IR_AC_MODE_DRY },
@@ -169,13 +172,14 @@ void parse(char *msg, uint8_t *cmd)
     } while (next != NULL);
     os_printf("\n");
 
-    uint8_t template[7] = { 0x01, 0x02, 0x0E, 0x00, 0x03, 0x00, 0xF0 };
+    uint8_t template[7] = { 0x01, 0x02, 0x0E, 0x00, 0x03, 0x00, 0x00 };
     memcpy(cmd, template, 7);
 
     /* FIXME: properly check allowed and invalid states */
     if (state.mode == IR_AC_MODE_FAN) state.temperature = 24;
     else if (state.mode == IR_AC_MODE_AUTO) state.temperature = 25;
-    else if (state.mode == IR_AC_MODE_COOL) state.temperature = CLAMP(state.temperature, 18, 30);
+    else if (state.mode == IR_AC_MODE_COOL)
+        state.temperature = CLAMP(state.temperature, 18, 30);
     else state.temperature = CLAMP(state.temperature, 16, 30);
 
     state.temperature = (state.temperature - 16) << 4;
@@ -185,13 +189,16 @@ void parse(char *msg, uint8_t *cmd)
     if (state.energy == IR_ENERGY_MODE_SAVE) {
         state.temperature = 26;
         state.swing = IR_SWING_MODE_ON;
+    } else if (state.energy == IR_ENERGY_MODE_TURBO) {
+        state.fan = IR_FAN_MODE_AUTO;
     }
+
 
     cmd[2] |= state.swing;
     cmd[3] |= state.display | state.energy;
     cmd[4] |= state.temperature;
     cmd[5] |= state.mode | state.fan;
-    cmd[6] |= state.ion;
+    cmd[6] |= state.power | state.ion;
     cmd[1] |= checksum(cmd) << 4;
 
     os_printf("Command: ");

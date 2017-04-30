@@ -1,6 +1,9 @@
 #ifndef _IR_DRIVER_H
 #define _IR_DRIVER_H
 
+#define IR_POWER_MODE_ON     0xF0
+#define IR_POWER_MODE_OFF    0xC0
+
 #define IR_AC_MODE_AUTO      0x00
 #define IR_AC_MODE_COOL      0x10
 #define IR_AC_MODE_DRY       0x20
