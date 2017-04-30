@@ -175,6 +175,15 @@ void parse(char *msg, uint8_t *cmd)
     uint8_t template[7] = { 0x01, 0x02, 0x0E, 0x00, 0x03, 0x00, 0x00 };
     memcpy(cmd, template, 7);
 
+    /* defaults */
+    if (state.power == 0) state.power = IR_POWER_MODE_ON;
+    if (state.mode == 0) state.mode = IR_AC_MODE_AUTO;
+    if (state.fan == 0) state.fan = IR_FAN_MODE_AUTO;
+    if (state.energy == 0) state.energy = IR_ENERGY_MODE_NORMAL;
+    if (state.display == 0) state.display = IR_DISPLAY_MODE_OFF;
+    if (state.swing == 0) state.swing = IR_SWING_MODE_OFF;
+    if (state.ion == 0) state.ion = IR_ION_MODE_OFF;
+
     /* FIXME: properly check allowed and invalid states */
     if (state.mode == IR_AC_MODE_FAN) state.temperature = 24;
     else if (state.mode == IR_AC_MODE_AUTO) state.temperature = 25;
