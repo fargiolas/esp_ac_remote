@@ -13,10 +13,10 @@
 #define IR_FAN_MODE_HIGH     0x0B
 #define IR_FAN_MODE_NATURAL  0x0D
 
-#define IR_POWER_MODE_NORMAL 0x01
-#define IR_POWER_MODE_SLEEP  0x03
-#define IR_POWER_MODE_TURBO  0x07
-#define IR_POWER_MODE_SAVE   0x0F
+#define IR_ENERGY_MODE_NORMAL 0x01
+#define IR_ENERGY_MODE_SLEEP  0x03
+#define IR_ENERGY_MODE_TURBO  0x07
+#define IR_ENERGY_MODE_SAVE   0x0F
 
 #define IR_DISPLAY_MODE_ON   0xF0
 #define IR_DISPLAY_MODE_OFF  0xE0
@@ -39,4 +39,4 @@ void build_command (uint8_t *cmd, uint8_t mode, uint8_t temperature,
                     uint8_t energy_mode, uint8_t ions,
                     uint8_t display);
 
-#endif /* _IR_REMOTE_H */
+#endif /* _IR_DRIVER_H */
