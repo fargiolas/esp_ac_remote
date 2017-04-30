@@ -226,9 +226,13 @@ void main (void)
     uint8_t i;
 
     char *payloads[] = {
+         "",
+         "default",
         "power=off, mode=warm,temperature=27,fan=auto,swing=off,energy=normal,ion=off,display=on",
         "power=on, mode=warm,temperature=27,fan=auto,swing=off,energy=normal,ion=off,display=on",
         "power=on, mode=cool,temperature=10,fan=high,swing=on,energy=turbo,ion=on,display=off",
+         "power=off",
+         "power=on",
     };
 
     uint8_t command[7];
