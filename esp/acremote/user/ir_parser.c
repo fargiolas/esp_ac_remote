@@ -1,3 +1,5 @@
+#ifndef _TEST__MODE____
+
 #include "ets_sys.h"
 #include "gpio.h"
 #include "os_type.h"
@@ -5,6 +7,21 @@
 #include "mem.h"
 #include "user_config.h"
 #include "user_interface.h"
+
+#else
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+#define os_zalloc malloc
+#define os_printf printf
+#define os_free free
+#define uint8_t unsigned char
+#define uint32_t long int
+
+#endif
 
 #include "utils.h"
 #include "ir_driver.h"
@@ -190,10 +207,19 @@ void parse(char *msg, uint8_t *cmd)
 void main (void)
 {
     char *test;
-    char *msg = "mode=warm,temperature=27,fan=auto,-----swing=off,energy=normal,ion=off,display=on";
+    uint8_t i;
+
+    char *payloads[] = {
+        "power=off, mode=warm,temperature=27,fan=auto,swing=off,energy=normal,ion=off,display=on",
+        "power=on, mode=warm,temperature=27,fan=auto,swing=off,energy=normal,ion=off,display=on",
+        "power=on, mode=cool,temperature=10,fan=high,swing=on,energy=turbo,ion=on,display=off",
+    };
+
     uint8_t command[7];
-    test = chomp(msg, strlen(msg));
-    parse(test, command);
+    for (i=0; i<N_ELEMENTS(payloads); i++) {
+        test = chomp(payloads[i], strlen(payloads[i]));
+        parse(test, command);
+    }
 }
 
 #endif
