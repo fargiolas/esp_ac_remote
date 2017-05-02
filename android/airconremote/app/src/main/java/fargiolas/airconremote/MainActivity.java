@@ -39,14 +39,16 @@ public class MainActivity extends AppCompatActivity {
 
         /* temperature widget: a really poor one */
         TextView temp_textview = (TextView) findViewById(R.id.TempTextview);
-        temp_textview.setText(Html.fromHtml("<b>" + ACState.get_Temperature() + "</b> °C"));
+        temp_textview.setText(Html.fromHtml("<b>" + ACState.get_Temperature() +
+                "</b><small> °C</small>"));
         ImageButton temp_up_button = (ImageButton) findViewById(R.id.TempUpButton);
         temp_up_button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 TextView temp_textview = (TextView) findViewById(R.id.TempTextview);
                 int temperature = ACState.set_Temperature(ACState.get_Temperature()+1);
-                temp_textview.setText(Html.fromHtml("<b>" + temperature + "</b> °C"));
+                temp_textview.setText(Html.fromHtml("<b>" + temperature + "</b><small> " +
+                        "°C</small>"));
             }
         });
         ImageButton temp_down_button = (ImageButton) findViewById(R.id.TempDownButton);
@@ -55,7 +57,8 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 TextView temp_textview = (TextView) findViewById(R.id.TempTextview);
                 int temperature = ACState.set_Temperature(ACState.get_Temperature()-1);
-                temp_textview.setText(Html.fromHtml("<b>" + temperature + "</b> °C"));
+                temp_textview.setText(Html.fromHtml("<b>" + temperature + "</b><small> °" +
+                        "C</small>"));
             }
         });
 
