@@ -140,12 +140,12 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:background="@drawable/togglebtn"
-                android:checked="false"
+                android:checked="true"
                 android:fontFamily="sans-serif-condensed"
                 android:text="Swing"
                 android:textOff="Swing\nOff"
                 android:textOn="Swing\nOn"
-                android:textStyle="bold" />
+                android:textStyle="bold"/>
 
         </LinearLayout>
 
@@ -154,7 +154,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="bottom"
-            android:background="@color/brand_background"
+            android:background="?attr/colorPrimary"
             android:orientation="horizontal">
 
             <ToggleButton
