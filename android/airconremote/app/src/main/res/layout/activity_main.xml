@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.design.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="fargiolas.airconremote.MainActivity">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+        <android.support.v7.widget.Toolbar
+            android:id="@+id/my_awesome_toolbar"
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:minHeight="?attr/actionBarSize"
+            android:background="?attr/colorPrimary" />
+        <LinearLayout
+            android:id="@+id/temperature_view"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.3"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/TempDownButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="16dp"
+                android:layout_weight="0.2"
+                android:padding="20dp"
+                android:scaleType="fitEnd"
+                app:srcCompat="@drawable/ic_keyboard_arrow_down_black_24dp" />
+
+            <TextView
+                android:id="@+id/TempTextview"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginRight="8dp"
+                android:layout_marginStart="8dp"
+                android:fontFamily="sans-serif-condensed"
+                android:gravity="center_vertical"
+                android:text="20 °C"
+                android:textAlignment="center"
+                android:textAllCaps="false"
+                android:textColor="?android:attr/textColorPrimary"
+                android:textSize="56sp"
+                tools:layout_editor_absoluteY="33dp" />
+
+
+            <ImageButton
+                android:id="@+id/TempUpButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="16dp"
+                android:layout_weight="0.2"
+                android:padding="20dp"
+                android:scaleType="fitStart"
+                app:srcCompat="@drawable/ic_keyboard_arrow_up_black_24dp"
+                tools:layout_editor_absoluteY="33dp" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/mode_button_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.1"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+
+            <Button
+                android:id="@+id/ModeButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                android:text="MODE\nAUTO"
+                android:textAllCaps="false"
+                android:textSize="24sp" />
+
+            <Button
+                android:id="@+id/FanButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.5"
+                android:text="FAN\nAUTO"
+                android:textAllCaps="false"
+                android:textSize="24sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/toggle_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="top"
+            android:orientation="horizontal">
+
+            <ToggleButton
+                android:id="@+id/DisplayToggleButton"
+                style="@style/Base.Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/togglebtn"
+                android:fontFamily="sans-serif-condensed"
+                android:text="Display"
+                android:textOff="Display\nOff"
+                android:textOn="Display\nOn"
+                android:textStyle="bold" />
+
+            <ToggleButton
+                android:id="@+id/TurboToggleButton"
+                style="@style/Base.Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/togglebtn"
+                android:checked="false"
+                android:fontFamily="sans-serif-condensed"
+                android:text="Turbo"
+                android:textOff="Turbo\nOff"
+                android:textOn="Turbo\nOn"
+                android:textStyle="bold" />
+
+            <ToggleButton
+                android:id="@+id/SwingToggleButton"
+                style="@style/Base.Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/togglebtn"
+                android:checked="false"
+                android:fontFamily="sans-serif-condensed"
+                android:text="Swing"
+                android:textOff="Swing\nOff"
+                android:textOn="Swing\nOn"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/bottom_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="bottom"
+            android:background="@color/brand_background"
+            android:orientation="horizontal">
+
+            <ToggleButton
+                android:id="@+id/PowerToggleButton"
+                style="@style/Widget.AppCompat.Button.Borderless.Colored"
+                android:layout_width="wrap_content"
+                android:layout_height="128dp"
+                android:layout_weight="0.5"
+                android:background="@drawable/pwrbtn_bg"
+                android:checked="false"
+                android:drawableTint="?attr/colorAccent"
+                android:padding="32dp"
+                android:scaleType="fitCenter"
+                android:text=""
+                android:textOff=""
+                android:textOn="" />
+
+
+            <ImageButton
+                android:id="@+id/SendButton"
+                style="@style/Widget.AppCompat.Button.Borderless"
+                android:layout_width="wrap_content"
+                android:layout_height="128dp"
+                app:srcCompat="@drawable/ic_send_black_24dp"
+                android:layout_weight="0.5" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+</android.support.design.widget.CoordinatorLayout>
