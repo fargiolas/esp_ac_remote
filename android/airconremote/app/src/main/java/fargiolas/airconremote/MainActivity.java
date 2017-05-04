@@ -1,5 +1,6 @@
 package fargiolas.airconremote;
 
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
@@ -15,10 +16,13 @@ import android.widget.ToggleButton;
 import org.eclipse.paho.android.service.MqttAndroidClient;
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions;
 import org.eclipse.paho.client.mqttv3.IMqttActionListener;
+import org.eclipse.paho.client.mqttv3.IMqttMessageListener;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
     final String LOGTAG = "AirConRemote";
@@ -28,6 +32,16 @@ public class MainActivity extends AppCompatActivity {
     String client_id = "AirConRemote";
 
     AirConState ACState;
+
+    Handler handler = new Handler();
+    Runnable temperature_obsolete_cb = new Runnable() {
+        @Override
+        public void run() {
+            TextView tv = (TextView) findViewById(R.id.RoomTemptextView);
+            tv.setVisibility(View.INVISIBLE);
+        }
+    };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -152,6 +166,8 @@ public class MainActivity extends AppCompatActivity {
                     disconnectedBufferOptions.setDeleteOldestMessages(false);
                     mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
                     Log.w(LOGTAG, "Connected to MQTT Server");
+
+                    mqtt_subscribe();
                 }
 
                 @Override
@@ -188,4 +204,47 @@ public class MainActivity extends AppCompatActivity {
         button.setText(Html.fromHtml("<small>" + name.toUpperCase() + "</small><br/>" +
                 "<big><b>" + mode.toUpperCase() + "</b></big>"));
     }
+
+    public void mqtt_subscribe(){
+        try {
+            mqttAndroidClient.subscribe("/samsungac/temperature", 0, null, new
+                    IMqttActionListener() {
+                @Override
+                public void onSuccess(IMqttToken asyncActionToken) {
+                    Log.w(LOGTAG, "Subscribed to temperature notifications");
+                }
+
+                @Override
+                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
+                    Log.w(LOGTAG, "Failed to subscribe to temperature notifications");
+                }
+            });
+
+            mqttAndroidClient.subscribe("/samsungac/temperature", 0, new IMqttMessageListener() {
+                @Override
+                public void messageArrived(String topic, MqttMessage message) throws Exception {
+                    final String msg = new String(message.getPayload());
+                    Log.w(LOGTAG, "Temperature:" + msg);
+
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            TextView tv = (TextView) findViewById(R.id.RoomTemptextView);
+                            tv.setText("room temperature: " + msg +" °C");
+                            tv.setVisibility(View.VISIBLE);
+                        }
+                    });
+
+                    /* obsolete sensor data after some time, 30s here but can be longer */
+                    handler.removeCallbacks(temperature_obsolete_cb);
+                    handler.postDelayed(temperature_obsolete_cb, 30000);
+
+                }
+            });
+        } catch (MqttException ex){
+            System.err.println("Exception whilst subscribing");
+            ex.printStackTrace();
+        }
+    }
+
 }

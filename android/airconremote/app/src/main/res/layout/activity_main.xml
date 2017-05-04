@@ -69,6 +69,15 @@
 
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/RoomTemptextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="room temperature: 25 °C"
+            android:visibility="invisible"
+            android:textAlignment="center"
+            android:textAllCaps="false"/>
+
         <LinearLayout
             android:id="@+id/mode_button_layout"
             android:layout_width="match_parent"
@@ -87,7 +96,7 @@
                 android:fontFamily="sans-serif-thin"
                 android:text="MODE\nAUTO"
                 android:textAllCaps="false"
-                android:textSize="24sp" />
+                android:textSize="24sp"/>
 
             <Button
                 android:id="@+id/FanButton"
@@ -98,7 +107,7 @@
                 android:fontFamily="sans-serif-thin"
                 android:text="FAN\nAUTO"
                 android:textAllCaps="false"
-                android:textSize="24sp" />
+                android:textSize="24sp"/>
         </LinearLayout>
 
         <LinearLayout
