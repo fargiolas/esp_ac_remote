@@ -18,8 +18,8 @@ BUILD_BASE	= build
 FW_BASE		= firmware
 
 # base directory of the ESP8266 SDK package, absolute
-SDK_BASE	?= ../esp-open-sdk/sdk
-MQTT_BASE       ?= ../esp_mqtt
+SDK_BASE	?= ../../../esp-open-sdk/sdk
+MQTT_BASE       ?= ../../../esp_mqtt
 MQTT_INCLUDES   ?= $(addprefix $(MQTT_BASE)/,include mqtt/include)
 MQTT_LDFLAGS    ?= $(addprefix -L$(MQTT_BASE)/,firmware)
 
