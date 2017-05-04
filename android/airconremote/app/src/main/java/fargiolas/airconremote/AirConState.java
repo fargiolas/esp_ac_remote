@@ -12,13 +12,7 @@ public class AirConState {
     private SharedPreferences.Editor editor;
 
     String[] ACModes = {"auto", "cool", "dry", "fan", "warm"};
-    int ACMode = 0;
     String[] FanModes = {"auto", "low", "mid", "high"};
-    int FanMode = 0;
-    boolean PowerMode = false;
-    boolean EnergyMode = false;
-    boolean DisplayMode = false;
-    int Temperature = 22;
 
     public AirConState(Activity a) {
         prefs = a.getPreferences(Context.MODE_PRIVATE);
