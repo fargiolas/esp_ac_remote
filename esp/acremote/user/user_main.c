@@ -169,5 +169,5 @@ user_init()
 
     os_timer_disarm(&temperature_timer);
     os_timer_setfn(&temperature_timer, (os_timer_func_t *)temperature_cb, &mqttClient);
-    os_timer_arm(&temperature_timer, 10000, 1);
+    os_timer_arm(&temperature_timer, 5000, 1);
  }

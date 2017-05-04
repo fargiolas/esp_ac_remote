@@ -201,8 +201,8 @@ static void ICACHE_FLASH_ATTR temp2string(uint16_t temp, char *buf) {
     int8_t integ;
     uint16_t frac;
     integ = temp >> 4;
-    frac = ((temp & 0xC)>>2) * 25; /* assuming 10bit res */
-    os_sprintf(buf, "%d.%02u", integ, frac);
+    frac = ((temp & 0xf)>>3) * 5; /* assuming 9bit res */
+    os_sprintf(buf, "%d.%u", integ, frac);
 }
 
 char ICACHE_FLASH_ATTR *ds18b20_get_temp(char *buf) {
