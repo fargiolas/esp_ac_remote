@@ -12,10 +12,11 @@
 #include "utils.h"
 #include "mqtt.h"
 #include "ir_driver.h"
+#include "ds18b20_driver.h"
 
 MQTT_Client mqttClient;
 
-static volatile os_timer_t some_timer;
+static volatile os_timer_t temperature_timer;
 
 
 void done (void* data) {
@@ -77,7 +78,7 @@ static void ICACHE_FLASH_ATTR mqttConnectedCb(uint32_t *args)
   MQTT_Client* client = (MQTT_Client*)args;
   INFO("MQTT: Connected\r\n");
   MQTT_Subscribe(client, "/samsungac/remote", 2);
-  MQTT_Publish(client, "/samsungac/info", "hey!", 6, 0, 0);
+  MQTT_Publish(client, "/samsungac/info", "hey!", 4, 0, 0);
 }
 
 static void ICACHE_FLASH_ATTR mqttDisconnectedCb(uint32_t *args)
@@ -114,6 +115,21 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
     os_free(payload);
 }
 
+void ICACHE_FLASH_ATTR temperature_cb (void *userdata) {
+    uint8_t integ;
+    uint16_t frac;
+    char buf[10];
+    char payload[256];
+
+    MQTT_Client* client = (MQTT_Client*)userdata;
+
+    ds18b20_get_temp(buf);
+    os_printf("Room temperature: %s\n", buf);
+
+
+    MQTT_Publish(client, "/samsungac/temperature", buf, os_strlen(buf), 0, 0);
+}
+
 
 //Init function
 void ICACHE_FLASH_ATTR
@@ -137,7 +153,7 @@ user_init()
     MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
     //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
 
-    if ( !MQTT_InitClient(&mqttClient, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASS, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
+    if ( !MQTT_InitClient(&mqttClient, MQTT_CLIENT_ID, NULL, NULL, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
     {
         INFO("Failed to initialize properly. Check MQTT version.\r\n");
         return;
@@ -149,4 +165,9 @@ user_init()
     MQTT_OnData(&mqttClient, mqttDataCb);
 
     ir_init();
-}
+    ds18b20_init();
+
+    os_timer_disarm(&temperature_timer);
+    os_timer_setfn(&temperature_timer, (os_timer_func_t *)temperature_cb, &mqttClient);
+    os_timer_arm(&temperature_timer, 10000, 1);
+ }
