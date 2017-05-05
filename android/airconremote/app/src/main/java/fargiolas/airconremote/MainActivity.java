@@ -1,5 +1,6 @@
 package fargiolas.airconremote;
 
+import android.content.res.Resources;
 import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -21,13 +22,16 @@ import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.internal.security.SSLSocketFactoryFactory;
 
 import java.util.Date;
 
+import javax.net.ssl.SSLSocketFactory;
+
 public class MainActivity extends AppCompatActivity {
+    String server;
+    String topic;
     final String LOGTAG = "AirConRemote";
-    final String server = "tcp://192.168.1.180:1883";
-    final String topic = "/samsungac/remote";
     MqttAndroidClient mqttAndroidClient;
     String client_id = "AirConRemote";
 
@@ -50,6 +54,9 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = (Toolbar) findViewById(R.id.my_awesome_toolbar);
         setSupportActionBar(toolbar);
         ACState = new AirConState(this);
+
+        server = getResources().getString(R.string.ssl_server);
+        topic = getResources().getString(R.string.command_topic);
 
         /* temperature widget: a really poor one */
         TextView temp_textview = (TextView) findViewById(R.id.TempTextview);
@@ -151,9 +158,14 @@ public class MainActivity extends AppCompatActivity {
         client_id = client_id + System.currentTimeMillis();
 
         MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-        mqttConnectOptions.setAutomaticReconnect(true);
-        mqttConnectOptions.setCleanSession(false);
 
+        mqttConnectOptions.setAutomaticReconnect(true);
+        mqttConnectOptions.setCleanSession(true);
+        SslToolbox sslToolbox = SslToolbox.getSslToolbox();
+        SSLSocketFactory factory = sslToolbox.getSocketFactoryFromRes(this,
+                R.raw.trust_keystore, R.string.ca_keystore_password,
+                R.raw.android_store_p12, R.string.key_keystore_password);
+        mqttConnectOptions.setSocketFactory(factory);
         try {
             //addToHistory("Connecting to " + serverUri);
             mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
