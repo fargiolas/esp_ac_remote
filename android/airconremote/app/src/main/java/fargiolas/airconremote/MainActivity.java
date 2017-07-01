@@ -2,6 +2,7 @@ package fargiolas.airconremote;
 
 import android.content.res.Resources;
 import android.os.Handler;
+import android.support.annotation.IdRes;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
@@ -28,11 +29,11 @@ import java.util.Date;
 
 import javax.net.ssl.SSLSocketFactory;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MqttHelper.MqttHelperCallback {
+    MqttHelper mqtthelper;
     String server;
     String topic;
     final String LOGTAG = "AirConRemote";
-    MqttAndroidClient mqttAndroidClient;
     String client_id = "AirConRemote";
 
     AirConState ACState;
@@ -154,42 +155,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        mqttAndroidClient = new MqttAndroidClient(getApplicationContext(), server, client_id);
-        client_id = client_id + System.currentTimeMillis();
-
-        MqttConnectOptions mqttConnectOptions = new MqttConnectOptions();
-
-        mqttConnectOptions.setAutomaticReconnect(true);
-        mqttConnectOptions.setCleanSession(true);
-        SslToolbox sslToolbox = SslToolbox.getSslToolbox();
-        SSLSocketFactory factory = sslToolbox.getSocketFactoryFromRes(this,
-                R.raw.trust_keystore, R.string.ca_keystore_password,
-                R.raw.android_store_p12, R.string.key_keystore_password);
-        mqttConnectOptions.setSocketFactory(factory);
-        try {
-            //addToHistory("Connecting to " + serverUri);
-            mqttAndroidClient.connect(mqttConnectOptions, null, new IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    DisconnectedBufferOptions disconnectedBufferOptions = new DisconnectedBufferOptions();
-                    disconnectedBufferOptions.setBufferEnabled(true);
-                    disconnectedBufferOptions.setBufferSize(100);
-                    disconnectedBufferOptions.setPersistBuffer(false);
-                    disconnectedBufferOptions.setDeleteOldestMessages(false);
-                    mqttAndroidClient.setBufferOpts(disconnectedBufferOptions);
-                    Log.w(LOGTAG, "Connected to MQTT Server");
-
-                    mqtt_subscribe();
-                }
-
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.w(LOGTAG, "Failed to connect to: " + server + exception.getMessage());
-                }
-            });
-        } catch (MqttException ex) {
-            ex.printStackTrace();
-        }
+        mqtthelper = MqttHelper.getInstance(this);
+        mqtthelper.setCallback(this);
+        mqtthelper.connect(server, client_id);
     }
 
     public void mqtt_send_command() {
@@ -202,14 +170,7 @@ public class MainActivity extends AppCompatActivity {
                 ", temperature=" + ACState.get_Temperature());
 
         Log.w(LOGTAG, "Payload: " + payload);
-
-        try {
-            MqttMessage message = new MqttMessage(payload.getBytes());
-            mqttAndroidClient.publish(topic, message);
-        } catch (MqttException ex) {
-            Log.w(LOGTAG, "Failed publishing: " + ex.getMessage());
-        }
-
+        mqtthelper.publish(topic, payload);
     }
 
     public void mode_button_set_label(Button button, String name, String mode) {
@@ -217,46 +178,22 @@ public class MainActivity extends AppCompatActivity {
                 "<big><b>" + mode.toUpperCase() + "</b></big>"));
     }
 
-    public void mqtt_subscribe(){
-        try {
-            mqttAndroidClient.subscribe("/samsungac/temperature", 0, null, new
-                    IMqttActionListener() {
-                @Override
-                public void onSuccess(IMqttToken asyncActionToken) {
-                    Log.w(LOGTAG, "Subscribed to temperature notifications");
-                }
+    @Override
+    public void onMessageArrived(String topic, MqttMessage message) {
+        final String payload = new String(message.getPayload());
+        Log.w(LOGTAG, "temperature: " + payload);
 
-                @Override
-                public void onFailure(IMqttToken asyncActionToken, Throwable exception) {
-                    Log.w(LOGTAG, "Failed to subscribe to temperature notifications");
-                }
-            });
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                TextView tv = (TextView) findViewById(R.id.RoomTemptextView);
+                tv.setText("room temperature: " + payload +" °C");
+                tv.setVisibility(View.VISIBLE);
+            }
+        });
 
-            mqttAndroidClient.subscribe("/samsungac/temperature", 0, new IMqttMessageListener() {
-                @Override
-                public void messageArrived(String topic, MqttMessage message) throws Exception {
-                    final String msg = new String(message.getPayload());
-                    Log.w(LOGTAG, "Temperature:" + msg);
-
-                    handler.post(new Runnable() {
-                        @Override
-                        public void run() {
-                            TextView tv = (TextView) findViewById(R.id.RoomTemptextView);
-                            tv.setText("room temperature: " + msg +" °C");
-                            tv.setVisibility(View.VISIBLE);
-                        }
-                    });
-
-                    /* obsolete sensor data after some time, 30s here but can be longer */
-                    handler.removeCallbacks(temperature_obsolete_cb);
-                    handler.postDelayed(temperature_obsolete_cb, 30000);
-
-                }
-            });
-        } catch (MqttException ex){
-            System.err.println("Exception whilst subscribing");
-            ex.printStackTrace();
-        }
+        /* obsolete sensor data after some time, 30s here but can be longer */
+        handler.removeCallbacks(temperature_obsolete_cb);
+        handler.postDelayed(temperature_obsolete_cb, 30000);
     }
-
 }
