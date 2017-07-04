@@ -27,6 +27,7 @@ import org.eclipse.paho.client.mqttv3.IMqttActionListener;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.IMqttToken;
 import org.eclipse.paho.client.mqttv3.MqttCallback;
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -35,7 +36,7 @@ import java.util.UUID;
 
 import javax.net.ssl.SSLSocketFactory;
 
-public class MqttHelper implements IMqttActionListener, MqttCallback {
+public class MqttHelper implements IMqttActionListener, MqttCallbackExtended {
     private final static String LOGTAG = MqttHelper.class.getSimpleName();
 
     /* FIXME: context as a static field leaks memory... */
@@ -83,6 +84,7 @@ public class MqttHelper implements IMqttActionListener, MqttCallback {
     public void setCallback(MqttHelperCallback cb) {
         callback = cb;
     }
+
     /* mqtt helpers */
     public void subscribe(String topic) {
         try {
@@ -153,6 +155,8 @@ public class MqttHelper implements IMqttActionListener, MqttCallback {
         }
     }
 
+
+
     /* IMqttActionListener overrides */
     @Override
     public void onSuccess(IMqttToken token) {
@@ -167,8 +171,6 @@ public class MqttHelper implements IMqttActionListener, MqttCallback {
                 disconnectedBufferOptions.setDeleteOldestMessages(false);
                 client.setBufferOpts(disconnectedBufferOptions);
 
-                /* subscribe */
-                subscribe("/samsungac/temperature");
                 break;
             case DISCONNECTING:
                 Log.w(LOGTAG, "disconnection successful");
@@ -199,6 +201,13 @@ public class MqttHelper implements IMqttActionListener, MqttCallback {
     public void connectionLost(Throwable throwable) {
         Log.w(LOGTAG, "connection lost");
         state = State.DISCONNECTED;
+    }
+
+    @Override
+    public void connectComplete(boolean reconnect, String uri) {
+        Log.w(LOGTAG, "uri: " + uri + " (reconnect: " + (reconnect ? "yes" : "no") +  ")");
+        state = State.CONNECTED;
+        subscribe("/samsungac/temperature");
     }
 
     @Override
