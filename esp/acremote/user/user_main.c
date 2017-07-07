@@ -156,6 +156,9 @@ user_init()
 {
     static struct station_config config;
 
+    char client_id[24];
+    os_sprintf(client_id, "esp_ac_remote_%d", system_get_chip_id());
+
     wifi_station_set_hostname("esp_ac_remote");
     wifi_set_opmode_current(STATION_MODE);
 
@@ -172,7 +175,7 @@ user_init()
     MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
     //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
 
-    if ( !MQTT_InitClient(&mqttClient, MQTT_CLIENT_ID, NULL, NULL, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
+    if ( !MQTT_InitClient(&mqttClient, client_id, NULL, NULL, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
     {
         INFO("Failed to initialize properly. Check MQTT version.\r\n");
         return;
