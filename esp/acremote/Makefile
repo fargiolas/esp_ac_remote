@@ -26,8 +26,10 @@ MQTT_LDFLAGS    ?= $(addprefix -L$(MQTT_BASE)/,firmware)
 # esptool.py path and port
 ESPTOOL		?= esptool.py
 ESPPORT		?= /dev/ttyUSB0
+FLASH_OPTIONS   ?= -fm=dio -fs=32m
 FLASH_BAUDRATE  ?= 460800
 MONITOR_BAUDRATE ?= 74880
+
 
 # name for the target project
 TARGET		= app
@@ -134,7 +136,7 @@ monitor:
 	miniterm.py $(ESPPORT) $(MONITOR_BAUDRATE)
 
 flash: $(FW_FILE_1) $(FW_FILE_2)
-	$(ESPTOOL) --baud $(FLASH_BAUDRATE) --port $(ESPPORT) write_flash $(FW_FILE_1_ADDR) $(FW_FILE_1) $(FW_FILE_2_ADDR) $(FW_FILE_2)
+	$(ESPTOOL) --baud $(FLASH_BAUDRATE) --port $(ESPPORT) write_flash $(FLASH_OPTIONS) $(FW_FILE_1_ADDR) $(FW_FILE_1) $(FW_FILE_2_ADDR) $(FW_FILE_2)
 
 clean:
 	$(Q) rm -rf $(FW_BASE) $(BUILD_BASE)
