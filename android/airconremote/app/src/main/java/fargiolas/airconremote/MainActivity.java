@@ -142,6 +142,16 @@ public class MainActivity extends AppCompatActivity implements MqttHelper.MqttHe
             }
         });
 
+        ToggleButton ions_toggle = (ToggleButton) findViewById(R.id.IonsToggleButton);
+        ions_toggle.setChecked(ACState.get_BoolMode("ion"));
+        ions_toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                ACState.set_BoolMode("ion", isChecked);
+            }
+        });
+
+
         ToggleButton turbo_toggle = (ToggleButton) findViewById(R.id.TurboToggleButton);
         turbo_toggle.setChecked(ACState.get_BoolMode("turbo"));
         turbo_toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -169,6 +179,7 @@ public class MainActivity extends AppCompatActivity implements MqttHelper.MqttHe
                 ", mode=" + ACState.get_ACMode() +
                 ", fan=" + ACState.get_FanMode() +
                 ", swing=" + ACState.get_BoolModeStr("swing") +
+                ", ion=" + ACState.get_BoolModeStr("ion") +
                 ", display=" + ACState.get_BoolModeStr("display") +
                 ", energy=" + (ACState.get_BoolMode("turbo") ? "turbo" : "normal") +
                 ", temperature=" + ACState.get_Temperature());
