@@ -1,0 +1,6 @@
+.idea
+build/
+*.iml
+.gradle
+app/src/main/res/raw/
+app/src/main/res/values/secrets.xml
