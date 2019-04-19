@@ -192,7 +192,7 @@ int main (void)
     for (;;) {
         _delay_ms(1);
         if ((edge_count == 0) && (last_burst_size >= MINBURSTSIZE)) {
-            // printf("got buf: %d\n", last_burst_size);
+            printf("got buf: %d\n", last_burst_size);
             parse(buffer, last_burst_size);
             last_burst_size = 0;
         }
