@@ -71,11 +71,12 @@ uart_putchar(char c, FILE *stream)
 #define _APPROX(x, a, tol) (((x) <= ((a)+(a*tol))) && ((x) >= ((a)-(a*tol))))
 #define APPROX(x, a) _APPROX((x), (a), (DEFAULT_TOLERANCE))
 
-#define HEADER_MARK 3000
-#define HEADER_SPACE 9000
+#define HEADER_MARK 3200
+#define HEADER_SPACE 1400
 #define LONG_CMD_SPACE 2500
 #define SPACE_BIT_THRESHOLD 1000
-// #define TIMINGSDEBUG
+/* #define TIMINGSDEBUG */
+#define CHUNK_SIZE 11
 
 
 /* interrupts are nice... but too much global state for my taste,
@@ -105,7 +106,7 @@ FILE uart_output = FDEV_SETUP_STREAM(uart_putchar, NULL, _FDEV_SETUP_RW);
 
 void parse(volatile uint16_t *buf, uint16_t sz)
 {
-    uint8_t chunk[8];
+    uint8_t chunk[CHUNK_SIZE];
     uint8_t bit;
 
     uint16_t headers[MAXCMDINBURST];
@@ -152,7 +153,7 @@ void parse(volatile uint16_t *buf, uint16_t sz)
         printf("\n");
 #endif
 
-        memset(chunk, 0, 8*sizeof(uint8_t));
+        memset(chunk, 0, CHUNK_SIZE*sizeof(uint8_t));
 
         printf("Hh");
         for (uint16_t i=start; i<end; i++) {
@@ -163,7 +164,7 @@ void parse(volatile uint16_t *buf, uint16_t sz)
             }
         }
 
-        for (uint8_t i=0; i<7; i++) {
+        for (uint8_t i=0; i<CHUNK_SIZE; i++) {
             printf(" %02X", chunk[i]);
         }
 

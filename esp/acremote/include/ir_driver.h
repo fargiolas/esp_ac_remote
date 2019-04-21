@@ -20,34 +20,27 @@
 #ifndef _IR_DRIVER_H
 #define _IR_DRIVER_H
 
-#define IR_POWER_MODE_ON     0xF0
-#define IR_POWER_MODE_OFF    0xC0
+/* 0 here means "default template" */
+#define IR_POWER_MODE_OFF 0
+/* "on" toggle bits, assuming template is "off" by default */
+#define IR_POWER_MODE_ON  ((1<<3) | (1<<11))
 
-#define IR_AC_MODE_AUTO      0x00
-#define IR_AC_MODE_COOL      0x10
-#define IR_AC_MODE_DRY       0x20
-#define IR_AC_MODE_FAN       0x30
-#define IR_AC_MODE_WARM      0x40
+#define IR_SWING_MODE_OFF  0
+#define IR_SWING_MODE_ON   ((1<<20) | (1<<28))
+#define IR_SWING_MODE_BLOW ((1<<19) | (1<<27))
 
-#define IR_FAN_MODE_AUTO     0x01
-#define IR_FAN_MODE_LOW      0x05
-#define IR_FAN_MODE_MID      0x09
-#define IR_FAN_MODE_HIGH     0x0B
-#define IR_FAN_MODE_NATURAL  0x0D
+#define IR_ENERGY_MODE_NORMAL 0
+#define IR_ENERGY_MODE_TURBO ((1<<30) | (1<<22))
 
-#define IR_ENERGY_MODE_NORMAL 0x01
-#define IR_ENERGY_MODE_SLEEP  0x03
-#define IR_ENERGY_MODE_TURBO  0x07
-#define IR_ENERGY_MODE_SAVE   0x0F
+#define IR_AC_MODE_AUTO 0x700
+#define IR_AC_MODE_COOL 0x601
+#define IR_AC_MODE_DRY  0x304
+#define IR_AC_MODE_WARM 0x502
 
-#define IR_DISPLAY_MODE_ON   0xF0
-#define IR_DISPLAY_MODE_OFF  0xE0
-
-#define IR_SWING_MODE_ON     0xA0
-#define IR_SWING_MODE_OFF    0xF0
-
-#define IR_ION_MODE_ON       0x08
-#define IR_ION_MODE_OFF      0x00
+#define IR_FAN_MODE_AUTO 0xF0000000
+#define IR_FAN_MODE_LOW  0xB0400000
+#define IR_FAN_MODE_MID  0x90600000
+#define IR_FAN_MODE_HIGH 0x70800000
 
 typedef void (* cmd_done_func_t)();
 

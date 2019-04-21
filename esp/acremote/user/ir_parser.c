@@ -47,22 +47,24 @@
 #include "utils.h"
 #include "ir_driver.h"
 
+#define cmd_len 11
+
 typedef struct _ACState {
-    uint8_t power;
-    uint8_t mode;
-    uint8_t temperature;
-    uint8_t fan;
-    uint8_t swing;
-    uint8_t energy;
-    uint8_t ion;
-    uint8_t display;
+    uint64_t power;
+    uint64_t mode;
+    uint64_t temperature;
+    uint64_t fan;
+    uint64_t swing;
+    uint64_t energy;
+    // uint8_t ion;
+    // uint8_t display;
 } ACState;
 
 typedef struct {
     char     *key;
-    uint8_t  *value_dest;
+    uint64_t  *value_dest;
     char     *value_name;
-    uint8_t   value_data;
+    uint64_t   value_data;
 } mode_parser_table;
 
 char *chomp(const char *str, uint32_t len)
@@ -123,28 +125,29 @@ static void parse_pair(char *key, char *value, ACState *state)
         {    "mode", &(state->mode),     "auto", IR_AC_MODE_AUTO },
         {    "mode", &(state->mode),     "cool", IR_AC_MODE_COOL },
         {    "mode", &(state->mode),      "dry", IR_AC_MODE_DRY },
-        {    "mode", &(state->mode),      "fan", IR_AC_MODE_FAN },
+        /* {    "mode", &(state->mode),      "fan", IR_AC_MODE_FAN }, */
         {    "mode", &(state->mode),     "warm", IR_AC_MODE_WARM },
         /***************************************************************/
         {     "fan", &(state->fan),      "auto", IR_FAN_MODE_AUTO },
         {     "fan", &(state->fan),       "low", IR_FAN_MODE_LOW },
         {     "fan", &(state->fan),       "mid", IR_FAN_MODE_MID },
         {     "fan", &(state->fan),      "high", IR_FAN_MODE_HIGH },
-        {     "fan", &(state->fan),   "natural", IR_FAN_MODE_NATURAL },
+        /* {     "fan", &(state->fan),   "natural", IR_FAN_MODE_NATURAL }, */
         /***************************************************************/
         {  "energy", &(state->energy), "normal", IR_ENERGY_MODE_NORMAL },
-        {  "energy", &(state->energy),  "sleep", IR_ENERGY_MODE_SLEEP },
+        /* {  "energy", &(state->energy),  "sleep", IR_ENERGY_MODE_SLEEP }, */
         {  "energy", &(state->energy),  "turbo", IR_ENERGY_MODE_TURBO },
-        {  "energy", &(state->energy),   "save", IR_ENERGY_MODE_SAVE },
+        // {  "energy", &(state->energy),   "save", IR_ENERGY_MODE_SAVE },
         /***************************************************************/
-        { "display", &(state->display),    "on", IR_DISPLAY_MODE_ON },
-        { "display", &(state->display),   "off", IR_DISPLAY_MODE_OFF },
+        /* { "display", &(state->display),    "on", IR_DISPLAY_MODE_ON }, */
+        /* { "display", &(state->display),   "off", IR_DISPLAY_MODE_OFF }, */
         /***************************************************************/
         {   "swing", &(state->swing),      "on", IR_SWING_MODE_ON },
         {   "swing", &(state->swing),     "off", IR_SWING_MODE_OFF },
+        {   "swing", &(state->swing),    "blow", IR_SWING_MODE_BLOW },
         /***************************************************************/
-        {     "ion", &(state->ion),        "on", IR_ION_MODE_ON },
-        {     "ion", &(state->ion),       "off", IR_ION_MODE_OFF },
+        /* {     "ion", &(state->ion),        "on", IR_ION_MODE_ON }, */
+        /* {     "ion", &(state->ion),       "off", IR_ION_MODE_OFF }, */
         /***************************************************************/
     };
 
@@ -159,15 +162,15 @@ static void parse_pair(char *key, char *value, ACState *state)
     }
 
     /* printf("%02X %d°C %02X %02X %02X %02X %02X\n",
-           state->mode, state->temperature, state->fan,
-           state->swing, state->energy, state->ion, state->display); */
+       state->mode, state->temperature, state->fan,
+       state->swing, state->energy, state->ion, state->display); */
 }
 
 static uint8_t checksum (uint8_t *buf) {
     /* 34 - ones sum */
     uint8_t acc,i,j;
     acc = 34;
-    for (i=0; i<7;i++)
+    for (i=0; i<cmd_len;i++)
         for (j=0; j<8; j++) {
             acc -= (buf[i] & 1<<j)>>j;
         }
@@ -193,46 +196,54 @@ void parse(char *msg, uint8_t *cmd)
     } while (next != NULL);
     os_printf("\n");
 
-    uint8_t template[7] = { 0x01, 0x02, 0x0E, 0x00, 0x03, 0x00, 0x00 };
-    memcpy(cmd, template, 7);
+    uint8_t template[cmd_len] = {0x52,0xAE,0xC3,0x26,0xD9,0xFF,0x00,0x0f,0x00,0x08,0x00};
+    memcpy(cmd, template, cmd_len);
 
     /* defaults */
-    if (state.power == 0) state.power = IR_POWER_MODE_ON;
+    if (state.power == 0) state.power = IR_POWER_MODE_OFF;
     if (state.mode == 0) state.mode = IR_AC_MODE_AUTO;
     if (state.fan == 0) state.fan = IR_FAN_MODE_AUTO;
     if (state.energy == 0) state.energy = IR_ENERGY_MODE_NORMAL;
-    if (state.display == 0) state.display = IR_DISPLAY_MODE_OFF;
+    /* if (state.display == 0) state.display = IR_DISPLAY_MODE_OFF; */
     if (state.swing == 0) state.swing = IR_SWING_MODE_OFF;
-    if (state.ion == 0) state.ion = IR_ION_MODE_OFF;
+    /* if (state.ion == 0) state.ion = IR_ION_MODE_OFF; */
 
-    /* FIXME: properly check allowed and invalid states */
-    if (state.mode == IR_AC_MODE_FAN) state.temperature = 24;
-    else if (state.mode == IR_AC_MODE_AUTO) state.temperature = 25;
-    else if (state.mode == IR_AC_MODE_COOL)
-        state.temperature = CLAMP(state.temperature, 18, 30);
-    else state.temperature = CLAMP(state.temperature, 16, 30);
-
-    state.temperature = (state.temperature - 16) << 4;
-
-    if (state.mode != IR_AC_MODE_COOL && state.energy == IR_ENERGY_MODE_SAVE)
-        state.energy = IR_ENERGY_MODE_NORMAL;
-    if (state.energy == IR_ENERGY_MODE_SAVE) {
-        state.temperature = 26;
-        state.swing = IR_SWING_MODE_ON;
-    } else if (state.energy == IR_ENERGY_MODE_TURBO) {
-        state.fan = IR_FAN_MODE_AUTO;
+    if (state.energy == IR_ENERGY_MODE_TURBO) {
+        state.fan = IR_FAN_MODE_HIGH;
     }
 
+    /* FIXME: properly check allowed and invalid states */
+    /* if (state.mode == IR_AC_MODE_FAN) state.temperature = 24; */
+    /* else if (state.mode == IR_AC_MODE_AUTO) state.temperature = 25; */
+    /* else if (state.mode == IR_AC_MODE_COOL) */
+    /*     state.temperature = CLAMP(state.temperature, 18, 30); */
+    /* else state.temperature = CLAMP(state.temperature, 16, 30); */
 
-    cmd[2] |= state.swing;
-    cmd[3] |= state.display | state.energy;
-    cmd[4] |= state.temperature;
-    cmd[5] |= state.mode | state.fan;
-    cmd[6] |= state.power | state.ion;
-    cmd[1] |= checksum(cmd) << 4;
+    uint64_t tail = (cmd[cmd_len-4] << 24) | (cmd[cmd_len-3] << 16) | (cmd[cmd_len-2] << 8) | cmd[cmd_len-1];
+
+    state.temperature = CLAMP(state.temperature, 18, 30);
+
+    tail |= state.mode;
+    tail |= state.fan;
+    tail |= (state.temperature - 18 + 1) << 4;
+    tail |= (30 - state.temperature + 2) << 12;
+
+    tail ^= state.swing;
+    tail ^= state.energy;
+    tail ^= state.power;
+
+    /* if (state.mode != IR_AC_MODE_COOL && state.energy == IR_ENERGY_MODE_SAVE) */
+    /*     state.energy = IR_ENERGY_MODE_NORMAL; */
+    /* if (state.energy == IR_ENERGY_MODE_SAVE) { */
+    /*     state.temperature = 26; */
+    /*     state.swing = IR_SWING_MODE_ON; */
+    cmd[cmd_len-4] = (tail >> 24) & 0xFF;
+    cmd[cmd_len-3] = (tail >> 16) & 0xFF;
+    cmd[cmd_len-2] = (tail >> 8) & 0xFF;
+    cmd[cmd_len-1] = tail & 0xFF;
 
     os_printf("Command: ");
-    for (i=0; i<7; i++) {
+    for (i=0; i<cmd_len; i++) {
         os_printf("%02X ", cmd[i]);
     }
     os_printf("\n");
@@ -247,16 +258,16 @@ void main (void)
     uint8_t i;
 
     char *payloads[] = {
-         "",
-         "default",
+        "",
+        "default",
         "power=off, mode=warm,temperature=27,fan=auto,swing=off,energy=normal,ion=off,display=on",
         "power=on, mode=warm,temperature=27,fan=auto,swing=off,energy=normal,ion=off,display=on",
         "power=on, mode=cool,temperature=10,fan=high,swing=on,energy=turbo,ion=on,display=off",
-         "power=off",
-         "power=on",
+        "power=off",
+        "power=on",
     };
 
-    uint8_t command[7];
+    uint8_t command[cmd_len];
     for (i=0; i<N_ELEMENTS(payloads); i++) {
         test = chomp(payloads[i], strlen(payloads[i]));
         parse(test, command);

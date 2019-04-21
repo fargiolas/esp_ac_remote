@@ -35,7 +35,7 @@
 
 MQTT_Client mqttClient;
 
-static volatile os_timer_t temperature_timer;
+static os_timer_t temperature_timer;
 
 
 void done (void* data) {
@@ -129,7 +129,7 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
         parse(payload, cmd);
     }
 
-    ir_send_cmd(cmd);
+    // ir_send_cmd(cmd);
 
     os_free(payload);
 }
