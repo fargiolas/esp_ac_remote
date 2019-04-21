@@ -39,18 +39,19 @@
 
 
 /*
-  Header: 3ms mark + 9ms space
+  Header (mitsub): 3ms mark + 1.5ms space
   Data: each bit starts with a 500us mark and its value is encoded in
   the subsequent space length, long space is one short space is 0.
 
   Transmission ends with a bit mark and line goes down for at least one 1-bit space
+  This is definitely true with samsung, not sure about mitsubishi, still checking
  */
 #define HEADER_MARK_US  3000
-#define HEADER_SPACE_US 9000
+#define HEADER_SPACE_US 1500
 
-#define BIT_SPACE_0_US  500 /* 450-470 */
-#define BIT_SPACE_1_US 1500 /* 1450 */
-#define BIT_MARK_US       500 /* 570 */
+#define BIT_SPACE_0_US  400
+#define BIT_SPACE_1_US 1200
+#define BIT_MARK_US     400
 
 #define _gpio_pin  4
 #define _gpio_func FUNC_GPIO4
@@ -71,7 +72,7 @@ typedef enum {
 static BurstState ir_state = STATE_IDLE;
 
 typedef struct _CommandData {
-    uint8_t cmd[7];
+    uint8_t cmd[cmd_len];
     uint8_t bit;
 
     cmd_done_func_t done_cb;
@@ -109,7 +110,7 @@ void ir_send_cmd_simple (uint8_t *buf)
     mark(HEADER_MARK_US);
     space(HEADER_SPACE_US);
 
-    for(i=0; i<7; i++) {
+    for(i=0; i<cmd_len; i++) {
         for (j=0; j<8; j++) {
             mark(BIT_MARK_US);
             if (buf[i] & 1<<j) {
@@ -164,7 +165,7 @@ void machine_func (void) {
         cur_data = cmd_queue->pop(cmd_queue);
 
         os_printf("Sending command: ");
-        for (i=0; i<7; i++) {
+        for (i=0; i<cmd_len; i++) {
             os_printf("%02X ", cur_data->cmd[i]);
         }
         os_printf("\n");
@@ -182,7 +183,7 @@ void machine_func (void) {
         break;
     case STATE_CMD_MARK:
         mark(BIT_MARK_US);
-        if (cur_data->bit <= (8*7-1))
+        if (cur_data->bit <= (8*cmd_len-1))
             change_state(STATE_CMD_SPACE);
         else
             change_state(STATE_DONE);
@@ -231,7 +232,7 @@ static CommandData *command_data_new(uint8_t *command,
 {
     CommandData *data = (CommandData *) os_zalloc(sizeof(CommandData));
 
-    os_memcpy(data->cmd, command, 7*sizeof(uint8_t));
+    os_memcpy(data->cmd, command, cmd_len*sizeof(uint8_t));
     data->bit = 0;
     data->done_cb = done_cb;
     data->done_data = done_data;
@@ -251,7 +252,7 @@ void ir_send_cmd_full (uint8_t *command,
     }
 
     os_printf("Pushing command: ");
-    for (i=0; i<7; i++) {
+    for (i=0; i<cmd_len; i++) {
         os_printf("%02X ", data->cmd[i]);
     }
     os_printf("\n");
@@ -275,7 +276,7 @@ uint8_t checksum (uint8_t *buf) {
     /* 34 - ones sum */
     uint8_t acc,i,j;
     acc = 34;
-    for (i=0; i<7;i++)
+    for (i=0; i<cmd_len;i++)
         for (j=0; j<8; j++) {
             acc -= (buf[i] & 1<<j)>>j;
         }

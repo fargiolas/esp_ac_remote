@@ -47,8 +47,6 @@
 #include "utils.h"
 #include "ir_driver.h"
 
-#define cmd_len 11
-
 typedef struct _ACState {
     uint64_t power;
     uint64_t mode;

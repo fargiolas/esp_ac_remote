@@ -120,7 +120,7 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
 {
     MQTT_Client* client = (MQTT_Client*)args;
 
-    uint8_t cmd[7];
+    uint8_t cmd[cmd_len];
     char *payload;
 
     if (os_strncmp(topic, IR_TOPIC, topic_len) == 0) {
@@ -129,7 +129,7 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
         parse(payload, cmd);
     }
 
-    // ir_send_cmd(cmd);
+    ir_send_cmd(cmd);
 
     os_free(payload);
 }

@@ -34,13 +34,15 @@
 
 #define IR_AC_MODE_AUTO 0x700
 #define IR_AC_MODE_COOL 0x601
-#define IR_AC_MODE_DRY  0x304
-#define IR_AC_MODE_WARM 0x502
+#define IR_AC_MODE_WARM 0x304
+#define IR_AC_MODE_DRY  0x502
 
 #define IR_FAN_MODE_AUTO 0xF0000000
 #define IR_FAN_MODE_LOW  0xB0400000
 #define IR_FAN_MODE_MID  0x90600000
 #define IR_FAN_MODE_HIGH 0x70800000
+
+#define cmd_len 11
 
 typedef void (* cmd_done_func_t)();
 

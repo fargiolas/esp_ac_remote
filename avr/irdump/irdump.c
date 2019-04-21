@@ -75,7 +75,7 @@ uart_putchar(char c, FILE *stream)
 #define HEADER_SPACE 1400
 #define LONG_CMD_SPACE 2500
 #define SPACE_BIT_THRESHOLD 1000
-/* #define TIMINGSDEBUG */
+#define TIMINGSDEBUG
 #define CHUNK_SIZE 11
 
 
