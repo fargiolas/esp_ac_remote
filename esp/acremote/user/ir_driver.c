@@ -164,7 +164,7 @@ void machine_func (void) {
     case STATE_INIT:
         cur_data = cmd_queue->pop(cmd_queue);
 
-        os_printf("Sending command: ");
+        os_printf("IR: sending command ");
         for (i=0; i<cmd_len; i++) {
             os_printf("%02X ", cur_data->cmd[i]);
         }
@@ -209,7 +209,7 @@ void machine_func (void) {
         os_free(cur_data);
 
         if (cmd_queue->len == 0) {
-            os_printf("Queue done. See you in another life brother.\n");
+            os_printf("IR: queue done\n");
             queue_free(cmd_queue);
             cmd_queue = NULL;
             change_state_delayed(STATE_IDLE, BIT_SPACE_1_US);
@@ -247,11 +247,11 @@ void ir_send_cmd_full (uint8_t *command,
     CommandData *data = command_data_new(command, done_cb, done_data);
 
     if (cmd_queue == NULL) {
-        os_printf("Queue init\n");
+        os_printf("IR: queue init\n");
         cmd_queue = queue_new();
     }
 
-    os_printf("Pushing command: ");
+    os_printf("IR: pushing command ");
     for (i=0; i<cmd_len; i++) {
         os_printf("%02X ", data->cmd[i]);
     }

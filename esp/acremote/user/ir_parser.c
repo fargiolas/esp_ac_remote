@@ -183,6 +183,7 @@ void parse(char *msg, uint8_t *cmd)
     ACState state;
     memset(&state, 0x00, sizeof(ACState));
 
+    os_printf("PARSER: ");
     do {
         memset(key, 0, N_ELEMENTS(key));
         memset(value, 0, N_ELEMENTS(value));
@@ -239,13 +240,6 @@ void parse(char *msg, uint8_t *cmd)
     cmd[cmd_len-3] = (tail >> 16) & 0xFF;
     cmd[cmd_len-2] = (tail >> 8) & 0xFF;
     cmd[cmd_len-1] = tail & 0xFF;
-
-    os_printf("Command: ");
-    for (i=0; i<cmd_len; i++) {
-        os_printf("%02X ", cmd[i]);
-    }
-    os_printf("\n");
-
 }
 
 #ifdef _TEST__MODE____

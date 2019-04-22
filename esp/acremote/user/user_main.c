@@ -37,19 +37,47 @@ MQTT_Client mqttClient;
 
 static os_timer_t temperature_timer;
 
+#ifdef DEMO_MODE
+
+static os_timer_t demo_timer;
+static uint8_t demo_counter = 0;
+static uint64_t demo_interval = 15000;
+
+void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
+    const char *commands[] = {
+        "power=on, mode=cool, temperature=30",
+        "power=on, mode=cool, temperature=26",
+        "power=on, mode=cool, temperature=18",
+        "power=on, mode=warm, temperature=28",
+        "power=on, mode=dry",
+        "power=on, mode=auto, temperature=28, swing=on",
+        "power=on, mode=auto, temperature=28, swing=blow",
+        "power=off",
+    };
+
+    uint8_t cmd[cmd_len];
+
+    os_printf("DEMO: sending command %s\n", commands[demo_counter]);
+    parse(commands[demo_counter], cmd);
+    ir_send_cmd(cmd);
+    demo_counter++;
+    demo_counter %= N_ELEMENTS(commands);
+}
+
+#endif /* DEMO_MODE */
 
 void done (void* data) {
     uint8_t *cmd = (uint8_t *) data;
     uint8_t i;
 
-    os_printf("Free heap: %d\n", system_get_free_heap_size());
+    os_printf("MEM: free heap %d\n", system_get_free_heap_size());
 }
 
 
 void ICACHE_FLASH_ATTR
 wifi_callback( System_Event_t *evt )
 {
-    os_printf( "%s: %d\n", __FUNCTION__, evt->event );
+    os_printf("%s: %d\n", __FUNCTION__, evt->event);
 
     switch ( evt->event )
     {
@@ -125,7 +153,7 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
 
     if (os_strncmp(topic, IR_TOPIC, topic_len) == 0) {
         payload = chomp(data, data_len);
-        os_printf("payload: %s\n", payload);
+        os_printf("MQTT payload: %s\n", payload);
         parse(payload, cmd);
     }
 
@@ -143,7 +171,7 @@ void ICACHE_FLASH_ATTR temperature_cb (void *userdata) {
     MQTT_Client* client = (MQTT_Client*)userdata;
 
     ds18b20_get_temp(buf);
-    os_printf("Room temperature: %s\n", buf);
+    os_printf("TEMPERATURE: %s °C\n", buf);
 
 
     MQTT_Publish(client, "/samsungac/temperature", buf, os_strlen(buf), 0, 0);
@@ -192,4 +220,10 @@ user_init()
     os_timer_disarm(&temperature_timer);
     os_timer_setfn(&temperature_timer, (os_timer_func_t *)temperature_cb, &mqttClient);
     os_timer_arm(&temperature_timer, 5000, 1);
- }
+
+#ifdef DEMO_MODE
+    os_timer_disarm(&demo_timer);
+    os_timer_setfn(&demo_timer, (os_timer_func_t *)demo_cb, NULL);
+    os_timer_arm(&demo_timer, demo_interval, 1);
+#endif /* DEMO_MODE */
+}
