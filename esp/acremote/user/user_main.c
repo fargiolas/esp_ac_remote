@@ -41,18 +41,18 @@ static os_timer_t temperature_timer;
 
 static os_timer_t demo_timer;
 static uint8_t demo_counter = 0;
-static uint64_t demo_interval = 15000;
+static uint64_t demo_interval = 5000;
 
 void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
     const char *commands[] = {
-        "power=on, mode=cool, temperature=30",
-        "power=on, mode=cool, temperature=26",
-        "power=on, mode=cool, temperature=18",
-        "power=on, mode=warm, temperature=28",
-        "power=on, mode=dry",
-        "power=on, mode=auto, temperature=28, swing=on",
-        "power=on, mode=auto, temperature=28, swing=blow",
-        "power=off",
+        /* "power=off, mode=cool, temperature=30", */
+        /* "power=off, mode=cool, temperature=26", */
+        /* "power=off, mode=cool, temperature=18", */
+        "power=off, mode=warm, temperature=30",
+        /* "power=off, mode=dry", */
+        /* "power=off, mode=auto, temperature=28, swing=off", */
+        /* "power=off, mode=auto, temperature=28, swing=blow", */
+        /* "power=off", */
     };
 
     uint8_t cmd[cmd_len];
@@ -95,8 +95,8 @@ wifi_callback( System_Event_t *evt )
                         evt->event_info.disconnected.ssid,
                         evt->event_info.disconnected.reason);
 
-            deep_sleep_set_option( 0 );
-            system_deep_sleep( 60 * 1000 * 1000 );  // 60 seconds
+            // deep_sleep_set_option( 0 );
+            // system_deep_sleep( 60 * 1000 * 1000 );  // 60 seconds
             break;
         }
 
