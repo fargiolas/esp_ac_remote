@@ -124,33 +124,15 @@ public class MainActivity extends AppCompatActivity implements MqttHelper.MqttHe
             }
         });
 
-        ToggleButton display_toggle = (ToggleButton) findViewById(R.id.DisplayToggleButton);
-        display_toggle.setChecked(ACState.get_BoolMode("display"));
-        display_toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        Button airflow_button = (Button) findViewById(R.id.AirflowButton);
+        mode_button_set_label(airflow_button, "swing", ACState.get_AirflowMode());
+        airflow_button.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                ACState.set_BoolMode("display", isChecked);
+            public void onClick(View v) {
+                String m = ACState.switch_AirflowMode();
+                mode_button_set_label((Button) v, "swing", m);
             }
         });
-
-        ToggleButton swing_toggle = (ToggleButton) findViewById(R.id.SwingToggleButton);
-        swing_toggle.setChecked(ACState.get_BoolMode("swing"));
-        swing_toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                ACState.set_BoolMode("swing", isChecked);
-            }
-        });
-
-        ToggleButton ions_toggle = (ToggleButton) findViewById(R.id.IonsToggleButton);
-        ions_toggle.setChecked(ACState.get_BoolMode("ion"));
-        ions_toggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                ACState.set_BoolMode("ion", isChecked);
-            }
-        });
-
 
         ToggleButton turbo_toggle = (ToggleButton) findViewById(R.id.TurboToggleButton);
         turbo_toggle.setChecked(ACState.get_BoolMode("turbo"));
@@ -178,9 +160,7 @@ public class MainActivity extends AppCompatActivity implements MqttHelper.MqttHe
         String payload = ("power=" + ACState.get_BoolModeStr("power") +
                 ", mode=" + ACState.get_ACMode() +
                 ", fan=" + ACState.get_FanMode() +
-                ", swing=" + ACState.get_BoolModeStr("swing") +
-                ", ion=" + ACState.get_BoolModeStr("ion") +
-                ", display=" + ACState.get_BoolModeStr("display") +
+                ", swing=" + ACState.get_AirflowMode() +
                 ", energy=" + (ACState.get_BoolMode("turbo") ? "turbo" : "normal") +
                 ", temperature=" + ACState.get_Temperature());
 
@@ -196,16 +176,27 @@ public class MainActivity extends AppCompatActivity implements MqttHelper.MqttHe
     @Override
     public void onMessageArrived(String topic, MqttMessage message) {
         final String payload = new String(message.getPayload());
-        Log.w(LOGTAG, "temperature: " + payload);
+        Log.w(LOGTAG, topic + ": " + payload);
 
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                TextView tv = (TextView) findViewById(R.id.RoomTemptextView);
-                tv.setText("room temperature: " + payload +" °C");
-                tv.setVisibility(View.VISIBLE);
-            }
-        });
+        if (topic.equals("/samsungac/temperature")) {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    TextView tv = (TextView) findViewById(R.id.RoomTemptextView);
+                    tv.setText("room temperature: " + payload + " °C");
+                    tv.setVisibility(View.VISIBLE);
+                }
+            });
+        } else if (topic.equals("/samsungac/humidity"))  {
+            handler.post(new Runnable() {
+                @Override
+                public void run() {
+                    TextView tv = (TextView) findViewById(R.id.RoomHumtextView);
+                    tv.setText("humidity: " + payload + " %");
+                    tv.setVisibility(View.VISIBLE);
+                }
+            });
+        }
 
         /* obsolete sensor data after some time, 30s here but can be longer */
         handler.removeCallbacks(temperature_obsolete_cb);

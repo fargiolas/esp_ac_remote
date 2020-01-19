@@ -29,8 +29,9 @@ public class AirConState {
     private SharedPreferences prefs;
     private SharedPreferences.Editor editor;
 
-    String[] ACModes = {"auto", "cool", "dry", "fan", "warm"};
+    String[] ACModes = {"auto", "cool", "dry", "warm"};
     String[] FanModes = {"auto", "low", "mid", "high"};
+    String[] AirflowModes = {"off", "on", "auto"};
 
     public AirConState(Activity a) {
         prefs = a.getPreferences(Context.MODE_PRIVATE);
@@ -80,6 +81,22 @@ public class AirConState {
         editor.commit();
 
         return FanModes[i];
+    }
+
+    public String get_AirflowMode() {
+        return prefs.getString("swing", AirflowModes[0]);
+    }
+
+    public String switch_AirflowMode() {
+        String m = prefs.getString("swing", ACModes[0]);
+        int i = index_of(AirflowModes, m);
+
+        i = (i + 1) % AirflowModes.length;
+
+        editor.putString("swing", AirflowModes[i]);
+        editor.commit();
+
+        return AirflowModes[i];
     }
 
     public String get_BoolModeStr(String tag) {

@@ -208,6 +208,7 @@ public class MqttHelper implements IMqttActionListener, MqttCallbackExtended {
         Log.w(LOGTAG, "uri: " + uri + " (reconnect: " + (reconnect ? "yes" : "no") +  ")");
         state = State.CONNECTED;
         subscribe("/samsungac/temperature");
+        subscribe("/samsungac/humidity");
     }
 
     @Override
