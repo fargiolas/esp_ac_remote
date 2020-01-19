@@ -133,7 +133,7 @@ $(FW_BASE):
 	$(Q) mkdir -p $@
 
 monitor:
-	miniterm.py $(ESPPORT) $(MONITOR_BAUDRATE)
+	python -m serial.tools.miniterm $(ESPPORT) $(MONITOR_BAUDRATE)
 
 flash: $(FW_FILE_1) $(FW_FILE_2)
 	$(ESPTOOL) --baud $(FLASH_BAUDRATE) --port $(ESPPORT) write_flash $(FLASH_OPTIONS) $(FW_FILE_1_ADDR) $(FW_FILE_1) $(FW_FILE_2_ADDR) $(FW_FILE_2)

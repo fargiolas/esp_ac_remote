@@ -32,10 +32,12 @@
 #include "mqtt.h"
 #include "ir_driver.h"
 #include "ds18b20_driver.h"
+#include "dht11_driver.h"
 
 MQTT_Client mqttClient;
 
 static os_timer_t temperature_timer;
+static os_timer_t humidity_timer;
 
 #ifdef DEMO_MODE
 
@@ -177,6 +179,16 @@ void ICACHE_FLASH_ATTR temperature_cb (void *userdata) {
     MQTT_Publish(client, "/samsungac/temperature", buf, os_strlen(buf), 0, 0);
 }
 
+void ICACHE_FLASH_ATTR humidity_cb (void *userdata) {
+    int8_t humidity = dht11_read();
+    char buf[10];
+
+    MQTT_Client* client = (MQTT_Client*)userdata;
+
+    os_sprintf(buf, "%d", humidity);
+    MQTT_Publish(client, "/samsungac/humidity", buf, os_strlen(buf), 0, 0);
+}
+
 
 //Init function
 void ICACHE_FLASH_ATTR
@@ -216,10 +228,16 @@ user_init()
 
     ir_init();
     ds18b20_init();
+    dht11_init();
 
     os_timer_disarm(&temperature_timer);
     os_timer_setfn(&temperature_timer, (os_timer_func_t *)temperature_cb, &mqttClient);
     os_timer_arm(&temperature_timer, 5000, 1);
+
+    os_timer_disarm(&humidity_timer);
+    os_timer_setfn(&humidity_timer, (os_timer_func_t *)humidity_cb, &mqttClient);
+    os_timer_arm(&humidity_timer, 5000, 1);
+
 
 #ifdef DEMO_MODE
     os_timer_disarm(&demo_timer);
