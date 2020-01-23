@@ -125,6 +125,38 @@ void ir_send_cmd_simple (uint8_t *buf)
     mark(BIT_MARK_US);
 }
 
+void ir_send_cmd_short (uint8_t *buf,
+                        uint16_t header_mark_us, uint16_t header_space_us,
+                        uint16_t bit_mark_us, uint16_t bit_space_0_us, uint16_t bit_space_1_us)
+{
+    uint8_t i,j;
+
+    os_printf("IR: pushing command ");
+    for (i=0; i<cmd_len; i++) {
+        os_printf("%02X ", buf[i]);
+    }
+    os_printf("\n");
+
+
+    mark(header_mark_us);
+    space(header_space_us);
+
+    for(i=0; i<4; i++) {
+        for (j=0; j<8; j++) {
+            mark(bit_mark_us);
+            if (buf[i] & 1<<j) {
+                space(bit_space_1_us);
+            }
+            else {
+                space(bit_space_0_us);
+            }
+        }
+    }
+
+    mark(bit_mark_us);
+}
+
+
 
 
 /* Async command state machine */

@@ -46,12 +46,15 @@ static os_timer_t bme_timer;
 static struct bme280_dev bme;
 static uint8_t bme280_i2c_addr;
 
+#define DEMO_MODE
 #ifdef DEMO_MODE
 
 static os_timer_t demo_timer;
 static uint8_t demo_counter = 0;
 static uint64_t demo_interval = 5000;
 
+static char remote_topic[30];
+static char info_topic[30];
 
 void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
     char *commands[] = {
@@ -72,6 +75,12 @@ void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
     ir_send_cmd(cmd);
     demo_counter++;
     demo_counter %= N_ELEMENTS(commands);
+
+    uint8_t teac_onoff[] = { 0x80, 0x72, 0x41, 0xBE };
+    ir_send_cmd_short(teac_onoff, 9000, 4500, 500, 500, 1500);
+
+    uint8_t samsungtv_onoff[] = { 0x07, 0x07, 0x02, 0xFD };
+    ir_send_cmd_short(samsungtv_onoff, 4500, 4500, 500, 500, 1500);
 }
 
 #endif /* DEMO_MODE */
@@ -191,8 +200,9 @@ static void ICACHE_FLASH_ATTR mqttConnectedCb(uint32_t *args)
 {
   MQTT_Client* client = (MQTT_Client*)args;
   INFO("MQTT: Connected\r\n");
-  MQTT_Subscribe(client, "/samsungac/remote", 2);
-  MQTT_Publish(client, "/samsungac/info", "hey!", 4, 0, 0);
+
+  MQTT_Subscribe(client, remote_topic, 2);
+  MQTT_Publish(client, info_topic, "hey!", 4, 0, 0);
 }
 
 static void ICACHE_FLASH_ATTR mqttDisconnectedCb(uint32_t *args)
@@ -208,8 +218,6 @@ static void ICACHE_FLASH_ATTR mqttPublishedCb(uint32_t *args)
 }
 
 
-#define IR_TOPIC "/samsungac/remote"
-
 char *chomp(const char *str, int len);
 static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint32_t topic_len, const char *data, uint32_t data_len)
 {
@@ -218,7 +226,7 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
     uint8_t cmd[cmd_len];
     char *payload;
 
-    if (os_strncmp(topic, IR_TOPIC, topic_len) == 0) {
+    if (os_strncmp(topic, remote_topic, topic_len) == 0) {
         payload = chomp(data, data_len);
         os_printf("MQTT payload: %s\n", payload);
         parse(payload, cmd);
@@ -232,6 +240,7 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
 void ICACHE_FLASH_ATTR temperature_cb (void *userdata) {
     uint8_t integ;
     uint16_t frac;
+    char topic[30];
     char buf[10];
     char payload[256];
 
@@ -239,20 +248,22 @@ void ICACHE_FLASH_ATTR temperature_cb (void *userdata) {
 
     ds18b20_get_temp(buf);
     os_printf("TEMPERATURE: %s °C\n", buf);
+    os_sprintf(topic, "%s/temperature", MQTT_TOPIC);
 
-
-    MQTT_Publish(client, "/samsungac/temperature", buf, os_strlen(buf), 0, 0);
+    MQTT_Publish(client, topic, buf, os_strlen(buf), 0, 0);
 }
 
 void ICACHE_FLASH_ATTR humidity_cb (void *userdata) {
     int8_t humidity = dht11_read();
+    char topic[30];
     char buf[10];
 
     MQTT_Client* client = (MQTT_Client*)userdata;
 
     os_sprintf(buf, "%d", humidity);
-    os_printf("HUMIDITY: %s%%\n", buf);
-    MQTT_Publish(client, "/samsungac/humidity", buf, os_strlen(buf), 0, 0);
+    os_sprintf(topic, "%s/humidity", MQTT_TOPIC);
+
+    MQTT_Publish(client, topic, buf, os_strlen(buf), 0, 0);
 }
 
 void ICACHE_FLASH_ATTR bme_cb (void *userdata) {
@@ -359,6 +370,9 @@ user_init()
 
     wifi_set_event_handler_cb(wifi_callback);
 
+    os_sprintf(remote_topic, "%s/remote", MQTT_TOPIC);
+    os_sprintf(info_topic, "%s/info", MQTT_TOPIC);
+
     MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
 
     if ( !MQTT_InitClient(&mqttClient, client_id, NULL, NULL, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
@@ -366,7 +380,7 @@ user_init()
         INFO("Failed to initialize properly. Check MQTT version.\r\n");
         return;
     }
-    MQTT_InitLWT(&mqttClient, "/samsungac/info", "bye!", 0, 0);
+    MQTT_InitLWT(&mqttClient, info_topic, "bye!", 0, 0);
     MQTT_OnConnected(&mqttClient, mqttConnectedCb);
     MQTT_OnDisconnected(&mqttClient, mqttDisconnectedCb);
     MQTT_OnPublished(&mqttClient, mqttPublishedCb);
@@ -374,15 +388,18 @@ user_init()
 
     ir_init();
     ds18b20_init();
-    dht11_init();
 
     os_timer_disarm(&temperature_timer);
     os_timer_setfn(&temperature_timer, (os_timer_func_t *)temperature_cb, &mqttClient);
     os_timer_arm(&temperature_timer, 5000, 1);
 
+#ifdef ENABLE_HUMIDITY
+    dht11_init();
+
     os_timer_disarm(&humidity_timer);
     os_timer_setfn(&humidity_timer, (os_timer_func_t *)humidity_cb, &mqttClient);
     os_timer_arm(&humidity_timer, 5000, 1);
+#endif /* ENABLE_HUMIDITY */
 
     i2c_master_gpio_init();
 
