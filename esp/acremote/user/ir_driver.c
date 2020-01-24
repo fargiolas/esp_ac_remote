@@ -131,13 +131,6 @@ void ir_send_cmd_short (uint8_t *buf,
 {
     uint8_t i,j;
 
-    os_printf("IR: pushing command ");
-    for (i=0; i<cmd_len; i++) {
-        os_printf("%02X ", buf[i]);
-    }
-    os_printf("\n");
-
-
     mark(header_mark_us);
     space(header_space_us);
 

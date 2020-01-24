@@ -46,15 +46,14 @@ static os_timer_t bme_timer;
 static struct bme280_dev bme;
 static uint8_t bme280_i2c_addr;
 
-#define DEMO_MODE
+static char remote_topic[30];
+static char info_topic[30];
+
 #ifdef DEMO_MODE
 
 static os_timer_t demo_timer;
 static uint8_t demo_counter = 0;
 static uint64_t demo_interval = 5000;
-
-static char remote_topic[30];
-static char info_topic[30];
 
 void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
     char *commands[] = {
@@ -227,15 +226,29 @@ static void ICACHE_FLASH_ATTR mqttDataCb(uint32_t *args, const char* topic, uint
     char *payload;
 
     if (os_strncmp(topic, remote_topic, topic_len) == 0) {
-        payload = chomp(data, data_len);
-        os_printf("MQTT payload: %s\n", payload);
-        parse(payload, cmd);
+        if (os_strncmp(data, "toggle-tv", MIN(9, data_len)) == 0) {
+            os_printf("TOGGLE TV!\n");
+
+            uint8_t teac_onoff[] = { 0x80, 0x72, 0x41, 0xBE };
+            uint8_t samsungtv_onoff[] = { 0x07, 0x07, 0x02, 0xFD };
+
+            os_printf("sending on/off to teac home theatre\n");
+            ir_send_cmd_short(teac_onoff, 9000, 4500, 500, 500, 1500);
+            os_delay_us(10000);
+            os_printf("sending on/off to samsung tv\n");
+            ir_send_cmd_short(samsungtv_onoff, 4500, 4500, 500, 500, 1500);
+        } else {
+            payload = chomp(data, data_len);
+            os_printf("MQTT payload: %s\n", payload);
+
+            parse(payload, cmd);
+            ir_send_cmd(cmd);
+
+            os_free(payload);
+        }
     }
-
-    ir_send_cmd(cmd);
-
-    os_free(payload);
 }
+
 
 void ICACHE_FLASH_ATTR temperature_cb (void *userdata) {
     uint8_t integ;
