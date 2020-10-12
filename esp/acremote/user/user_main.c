@@ -281,6 +281,7 @@ void ICACHE_FLASH_ATTR humidity_cb (void *userdata) {
 
 void ICACHE_FLASH_ATTR bme_cb (void *userdata) {
     int j;
+    char topic[30];
     char T[64];
     char RH[64];
     char P[64];
@@ -314,9 +315,15 @@ void ICACHE_FLASH_ATTR bme_cb (void *userdata) {
 
     MQTT_Client* client = (MQTT_Client*)userdata;
 
-    MQTT_Publish(client, "/samsungac/bme/temperature", T, os_strlen(T), 0, 0);
-    MQTT_Publish(client, "/samsungac/bme/humidity", RH, os_strlen(RH), 0, 0);
-    MQTT_Publish(client, "/samsungac/bme/pressure", P, os_strlen(P), 0, 0);
+    memset(topic, 0, sizeof(topic));
+    os_sprintf(topic, "%s/temperature", MQTT_TOPIC);
+    MQTT_Publish(client, topic, T, os_strlen(T), 0, 0);
+    memset(topic, 0, sizeof(topic));
+    os_sprintf(topic, "%s/humidity", MQTT_TOPIC);
+    MQTT_Publish(client, topic, RH, os_strlen(RH), 0, 0);
+    memset(topic, 0, sizeof(topic));
+    os_sprintf(topic, "%s/pressure", MQTT_TOPIC);
+    MQTT_Publish(client, topic, P, os_strlen(P), 0, 0);
 }
 
 void ICACHE_FLASH_ATTR bme280_setup(void)
@@ -400,11 +407,14 @@ user_init()
     MQTT_OnData(&mqttClient, mqttDataCb);
 
     ir_init();
+
+#ifdef ENABLE_DS18B20
     ds18b20_init();
 
     os_timer_disarm(&temperature_timer);
     os_timer_setfn(&temperature_timer, (os_timer_func_t *)temperature_cb, &mqttClient);
     os_timer_arm(&temperature_timer, 5000, 1);
+#endif /* ENABLE_DS18B20 */
 
 #ifdef ENABLE_HUMIDITY
     dht11_init();
