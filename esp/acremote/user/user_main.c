@@ -68,14 +68,6 @@ void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
 
 #endif /* DEMO_MODE */
 
-void done (void* data) {
-    uint8_t *cmd = (uint8_t *) data;
-    uint8_t i;
-
-    os_printf("MEM: free heap %d\n", system_get_free_heap_size());
-}
-
-
 void ICACHE_FLASH_ATTR
 wifi_callback( System_Event_t *evt )
 {
