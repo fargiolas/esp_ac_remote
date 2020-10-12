@@ -33,11 +33,18 @@
 #include "ir_driver.h"
 #include "ds18b20_driver.h"
 #include "dht11_driver.h"
+#include "i2c_master.h"
+#include "bme280.h"
+#include "printf.h"
 
 MQTT_Client mqttClient;
 
 static os_timer_t temperature_timer;
 static os_timer_t humidity_timer;
+static os_timer_t bme_timer;
+
+static struct bme280_dev bme;
+static uint8_t bme280_i2c_addr;
 
 #ifdef DEMO_MODE
 
@@ -45,8 +52,9 @@ static os_timer_t demo_timer;
 static uint8_t demo_counter = 0;
 static uint64_t demo_interval = 5000;
 
+
 void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
-    const char *commands[] = {
+    char *commands[] = {
         /* "power=off, mode=cool, temperature=30", */
         /* "power=off, mode=cool, temperature=26", */
         /* "power=off, mode=cool, temperature=18", */
@@ -67,6 +75,71 @@ void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
 }
 
 #endif /* DEMO_MODE */
+
+void user_delay_us(uint32_t period, void *intf_ptr)
+{
+    os_delay_us(period);
+}
+
+int8_t user_i2c_read(uint8_t reg_addr, uint8_t *reg_data, uint32_t len, void *intf_ptr)
+{
+    uint8_t dev_id = *((uint8_t *) intf_ptr);
+
+    i2c_master_start();
+    i2c_master_writeByte(dev_id << 1);
+    if (i2c_master_getAck()) {
+        i2c_master_stop();
+        return -1;
+    }
+    i2c_master_writeByte(reg_addr);
+    if (i2c_master_getAck()) {
+        i2c_master_stop();
+        return -1;
+    }
+    i2c_master_stop();
+    i2c_master_start();
+    i2c_master_writeByte((dev_id << 1) | 1);
+    if (i2c_master_getAck()) {
+        i2c_master_stop();
+        return -1;
+    }
+
+    while (len--) {
+        *reg_data++ = i2c_master_readByte();
+        i2c_master_setAck(len == 0);
+    }
+
+    i2c_master_stop();
+    return 0;
+}
+
+int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *reg_data, uint32_t len, void *intf_ptr)
+{
+    uint8_t dev_id = *((uint8_t *) intf_ptr);
+
+    i2c_master_start();
+    i2c_master_writeByte(dev_id << 1);
+    if (i2c_master_getAck()) {
+        i2c_master_stop();
+        return -1;
+    }
+    i2c_master_writeByte(reg_addr);
+    if (i2c_master_getAck()) {
+        i2c_master_stop();
+        return -1;
+    }
+
+    while (len--) {
+        i2c_master_writeByte(*reg_data++);
+        if (i2c_master_getAck()) {
+            i2c_master_stop();
+            return -1;
+        }
+    }
+
+    i2c_master_stop();
+    return 0;
+}
 
 void ICACHE_FLASH_ATTR
 wifi_callback( System_Event_t *evt )
@@ -178,9 +251,91 @@ void ICACHE_FLASH_ATTR humidity_cb (void *userdata) {
     MQTT_Client* client = (MQTT_Client*)userdata;
 
     os_sprintf(buf, "%d", humidity);
+    os_printf("HUMIDITY: %s%%\n", buf);
     MQTT_Publish(client, "/samsungac/humidity", buf, os_strlen(buf), 0, 0);
 }
 
+void ICACHE_FLASH_ATTR bme_cb (void *userdata) {
+    int j;
+    char T[64];
+    char RH[64];
+    char P[64];
+
+    uint32_t req_delay;
+    int8_t rslt = BME280_OK;
+
+    rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &bme);
+    if (rslt != BME280_OK){
+        os_printf("bme: set forced mode failed, (code %d).\n", rslt);
+        return;
+    }
+
+    req_delay = bme280_cal_meas_delay(&bme.settings);
+    bme.delay_us(req_delay, bme.intf_ptr);
+
+    struct bme280_data comp_data;
+
+    rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &bme);
+    if (rslt != BME280_OK) {
+        os_printf("Failed to get sensor data (code %d).\n", rslt);
+        return;
+    }
+
+    sprintf(T, "%.2f", comp_data.temperature);
+    sprintf(RH, "%.2f", comp_data.humidity);
+    sprintf(P, "%.2f", comp_data.pressure);
+
+    os_printf("%s C, %s %% , %s Pa\n", T, RH, P);
+
+
+    MQTT_Client* client = (MQTT_Client*)userdata;
+
+    MQTT_Publish(client, "/samsungac/bme/temperature", T, os_strlen(T), 0, 0);
+    MQTT_Publish(client, "/samsungac/bme/humidity", RH, os_strlen(RH), 0, 0);
+    MQTT_Publish(client, "/samsungac/bme/pressure", P, os_strlen(P), 0, 0);
+}
+
+void ICACHE_FLASH_ATTR bme280_setup(void)
+{
+    int8_t rslt = BME280_OK;
+
+    bme280_i2c_addr = BME280_I2C_ADDR_PRIM;
+    bme.intf = BME280_I2C_INTF;
+    bme.intf_ptr = &bme280_i2c_addr;
+    bme.read = user_i2c_read;
+    bme.write = user_i2c_write;
+    bme.delay_us = user_delay_us;
+
+    if (bme280_init(&bme) != BME280_OK) {
+        os_printf("bme: absent\n");
+        return;
+    }
+
+    bme.settings.osr_h = BME280_OVERSAMPLING_1X;
+    bme.settings.osr_p = BME280_OVERSAMPLING_1X;
+    bme.settings.osr_t = BME280_OVERSAMPLING_1X;
+    bme.settings.filter = BME280_FILTER_COEFF_OFF;
+
+    int settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL |
+        BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
+
+    rslt = bme280_set_sensor_settings(settings_sel, &bme);
+    if (rslt != BME280_OK) {
+        os_printf("bme: set sensor settings failed, (code %d).\n", rslt);
+        return;
+    }
+
+    rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &bme);
+    if (rslt != BME280_OK){
+        os_printf("bme: set forced mode failed, (code %d).\n", rslt);
+        return;
+    }
+
+
+    os_timer_disarm(&bme_timer);
+    os_timer_setfn(&bme_timer, (os_timer_func_t *) bme_cb, &mqttClient);
+    os_timer_arm(&bme_timer, 5000, 1);
+}
 
 //Init function
 void ICACHE_FLASH_ATTR
@@ -205,7 +360,6 @@ user_init()
     wifi_set_event_handler_cb(wifi_callback);
 
     MQTT_InitConnection(&mqttClient, MQTT_HOST, MQTT_PORT, DEFAULT_SECURITY);
-    //MQTT_InitConnection(&mqttClient, "192.168.11.122", 1880, 0);
 
     if ( !MQTT_InitClient(&mqttClient, client_id, NULL, NULL, MQTT_KEEPALIVE, MQTT_CLEAN_SESSION) )
     {
@@ -230,10 +384,13 @@ user_init()
     os_timer_setfn(&humidity_timer, (os_timer_func_t *)humidity_cb, &mqttClient);
     os_timer_arm(&humidity_timer, 5000, 1);
 
+    i2c_master_gpio_init();
+
+    bme280_setup();
 
 #ifdef DEMO_MODE
     os_timer_disarm(&demo_timer);
-    os_timer_setfn(&demo_timer, (os_timer_func_t *)demo_cb, NULL);
+    os_timer_setfn(&demo_timer, (os_timer_func_t *) demo_cb, NULL);
     os_timer_arm(&demo_timer, demo_interval, 1);
 #endif /* DEMO_MODE */
 }
