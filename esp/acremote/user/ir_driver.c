@@ -123,6 +123,7 @@ void ir_send_cmd_simple (uint8_t *buf)
     }
 
     mark(BIT_MARK_US);
+    space(5000);
 }
 
 void ir_send_cmd_short (uint8_t *buf,
@@ -130,6 +131,13 @@ void ir_send_cmd_short (uint8_t *buf,
                         uint16_t bit_mark_us, uint16_t bit_space_0_us, uint16_t bit_space_1_us)
 {
     uint8_t i,j;
+
+    os_printf("IR: pushing command ");
+    for (i=0; i<4; i++) {
+        os_printf("%02X ", buf[i]);
+    }
+    os_printf("\n");
+
 
     mark(header_mark_us);
     space(header_space_us);
@@ -147,6 +155,7 @@ void ir_send_cmd_short (uint8_t *buf,
     }
 
     mark(bit_mark_us);
+    space(5000);
 }
 
 
