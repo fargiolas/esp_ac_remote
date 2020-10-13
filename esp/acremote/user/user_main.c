@@ -75,8 +75,12 @@ void ICACHE_FLASH_ATTR demo_cb (void *userdata) {
     demo_counter++;
     demo_counter %= N_ELEMENTS(commands);
 
+    os_delay_us(10000);
+
     uint8_t teac_onoff[] = { 0x80, 0x72, 0x41, 0xBE };
     ir_send_cmd_short(teac_onoff, 9000, 4500, 500, 500, 1500);
+
+    os_delay_us(10000);
 
     uint8_t samsungtv_onoff[] = { 0x07, 0x07, 0x02, 0xFD };
     ir_send_cmd_short(samsungtv_onoff, 4500, 4500, 500, 500, 1500);
@@ -310,7 +314,7 @@ void ICACHE_FLASH_ATTR bme_cb (void *userdata) {
     sprintf(RH, "%.2f", comp_data.humidity);
     sprintf(P, "%.2f", comp_data.pressure);
 
-    os_printf("%s C, %s %% , %s Pa\n", T, RH, P);
+    os_printf("%s C, %s%%, %s Pa\n", T, RH, P);
 
 
     MQTT_Client* client = (MQTT_Client*)userdata;
@@ -424,9 +428,11 @@ user_init()
     os_timer_arm(&humidity_timer, 5000, 1);
 #endif /* ENABLE_HUMIDITY */
 
+#ifdef ENABLE_BME280
     i2c_master_gpio_init();
 
     bme280_setup();
+#endif /* ENABLE_BME280 */
 
 #ifdef DEMO_MODE
     os_timer_disarm(&demo_timer);
